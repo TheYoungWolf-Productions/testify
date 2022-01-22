@@ -19,7 +19,7 @@ flutter pub get
 
 ### :loudspeaker: Guidelines
 - :bulb: The team will ***STRICTLY*** follow the [Git Workflow](https://nvie.com/posts/a-successful-git-branching-model/)
-- :bulb: Every pull request needs to have a assigned reviewer.
+- :bulb: Every pull request needs to have an **assigned** reviewer.
 
 ## Contributors
 
