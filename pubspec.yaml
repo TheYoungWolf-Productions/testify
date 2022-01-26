@@ -35,6 +35,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   flutter_svg: ^1.0.2
+  http: ^0.13.4
+  path_provider: ^2.0.8
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +69,7 @@ flutter:
   - assets/Images/login.svg
   - assets/Images/login_bottomRight.svg
   - assets/Images/login_bottomRight_png.png
+  - assets/Images/create_quiz.svg
 
 fonts:
   - family: Brandon-bld
