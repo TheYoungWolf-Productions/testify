@@ -20,7 +20,7 @@ class SideMenuBar extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.arrow_back),
-                    title: Text('Back'),
+                    title: Text('Close'),
                     onTap: () => Navigator.pop(context),
                   ),
                   Divider(),
@@ -28,6 +28,7 @@ class SideMenuBar extends StatelessWidget {
                     leading: Icon(Icons.quiz_outlined),
                     title: Text('Generate Quiz'),
                     onTap: () async {
+                      Navigator.of(context).pop();
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => GenerateQuiz()),
