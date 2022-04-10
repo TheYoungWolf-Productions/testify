@@ -39,6 +39,7 @@ dependencies:
   path_provider: ^2.0.8
   shared_preferences: ^2.0.12
   flutter_countdown_timer: ^4.1.0
+  math_expressions: ^2.0.0
 
 
 dev_dependencies:
@@ -78,6 +79,9 @@ flutter:
     - assets/Images/zoom.svg
     - assets/Images/calculator.svg
     - assets/Images/notes.svg
+    - assets/Images/testResults.svg
+    - assets/Images/testAnalysis.svg
+    - assets/Images/prevQuiz.svg
 
   fonts:
     - family: Brandon-bld
