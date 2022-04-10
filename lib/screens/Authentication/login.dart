@@ -146,19 +146,21 @@ class _LoginState extends State<Login> {
       if(_isChecked == true) {
         storage.writeAuth(_email, _password);
         print("Email + Password: " + _email + _password);
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Home()),
-        );
+        // final result = await Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const Home()),
+        // );
+        Navigator.pushNamed(context, '/home');
       }
       else {
         storage.writeAuth(_email, _password);
         storage.deleteFile();
         print("Email + Password: " + _email + _password);
-        final result = await Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Home()),
-        );
+        // final result = await Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const Home()),
+        // );
+        Navigator.pushNamed(context, '/home');
       }
     }
     /*ScaffoldMessenger.of(context)
@@ -388,55 +390,67 @@ class _LoginState extends State<Login> {
                                         ),
                                       ),
                                       SizedBox(height: (MediaQuery.of(context).size.height)*0.024838,),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.start,
-                                            children: [
-                                              Container(
-                                                margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
-                                                height: (MediaQuery.of(context).size.height)*0.0167,
-                                                width: (MediaQuery.of(context).size.height)*0.0167,
-                                                color: Colors.white,
-                                                  child: Transform.scale(
-                                                    scale: (MediaQuery.of(context).size.height)*0.001,
-                                                    child: Checkbox(
-                                                      side: BorderSide(
-                                                        color: Color(0xffB0A6C2),
-                                                        width: 0,
+                                      GestureDetector(
+                                        onTap: () {
+                                          if(_isChecked == false)
+                                            setState(() {
+                                              _isChecked = true;
+                                            });
+                                          else if(_isChecked == true)
+                                            setState(() {
+                                              _isChecked = false;
+                                            });
+                                        },
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              children: [
+                                                Container(
+                                                  margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
+                                                  height: (MediaQuery.of(context).size.height)*0.0167,
+                                                  width: (MediaQuery.of(context).size.height)*0.0167,
+                                                  color: Colors.white,
+                                                    child: Transform.scale(
+                                                      scale: (MediaQuery.of(context).size.height)*0.001,
+                                                      child: Checkbox(
+                                                        side: BorderSide(
+                                                          color: Color(0xffB0A6C2),
+                                                          width: 0,
+                                                        ),
+                                                        checkColor: Colors.white,
+                                                        value: _isChecked,
+                                                        onChanged: (bool? value) {
+                                                          setState(() {
+                                                            _isChecked = value!;
+                                                          });
+                                                        },
                                                       ),
-                                                      checkColor: Colors.white,
-                                                      value: _isChecked,
-                                                      onChanged: (bool? value) {
-                                                        setState(() {
-                                                          _isChecked = value!;
-                                                        });
-                                                      },
                                                     ),
-                                                  ),
-                                              ),
-                                              Container(
-                                                padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
-                                                child: Text("Remember me!",
-                                                  style: TextStyle(
-                                                    color: Color.fromRGBO(255, 255, 255, 100),
-                                                    fontFamily: 'Brandon-med',
-                                                    fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                                  ),),
-                                              ),
-                                            ],
-                                          ),
-                                          Container(
-                                            padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
-                                            child: Text("Forgot Password?",
-                                              style: TextStyle(
-                                                color: Color(0xffFFFEFE),
-                                                fontFamily: 'Brandon-med',
-                                                fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                              ),),
-                                          ),
-                                        ],
+                                                ),
+                                                Container(
+                                                  padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
+                                                  child: Text("Remember me!",
+                                                    style: TextStyle(
+                                                      color: Color.fromRGBO(255, 255, 255, 100),
+                                                      fontFamily: 'Brandon-med',
+                                                      fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                    ),),
+                                                ),
+                                              ],
+                                            ),
+                                            Container(
+                                              padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
+                                              child: Text("Forgot Password?",
+                                                style: TextStyle(
+                                                  color: Color(0xffFFFEFE),
+                                                  fontFamily: 'Brandon-med',
+                                                  fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                ),),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                       SizedBox(height: (MediaQuery.of(context).size.height) *0.0864,),
                                 ],

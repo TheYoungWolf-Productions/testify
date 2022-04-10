@@ -423,99 +423,6 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                 ],
               ),
               SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
-              Container(
-                // padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(28/428), right: (MediaQuery.of(context).size.width) *(28/428)),
-                height: (MediaQuery.of(context).size.height) *(35.32/926),
-                width: double.infinity,
-                // decoration: BoxDecoration(
-                //   color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                // ),
-                child: TabBar(
-                  isScrollable: true,
-                  controller: _tabController,
-                  labelColor: Color(0xFF3F2668),
-                  labelStyle: TextStyle(
-                    color: Color(0xFF3F2668),
-                    fontFamily: 'Brandon-bld',
-                    fontSize: (MediaQuery.of(context).size.height) *(16/926),
-                  ),
-                  indicator: BoxDecoration(
-                    color: Colors.transparent,
-                  ),
-                  indicatorColor: Color(0xFF3F2668),
-                  unselectedLabelColor: Color(0xFFA1A1A1),
-                  unselectedLabelStyle: TextStyle(
-                    color: Color(0xFFA1A1A1),
-                    fontFamily: 'Brandon-bld',
-                    fontSize: (MediaQuery.of(context).size.height) *(16/926),
-                  ),
-                  labelPadding: EdgeInsets.only(top: (MediaQuery.of(context).size.height) *(0/926), bottom: (MediaQuery.of(context).size.height) *(0/926),
-                  left: (MediaQuery.of(context).size.height) *(0/926), right: (MediaQuery.of(context).size.height) *(0/926)),
-                  tabs: [
-                    Container(
-                        width: (MediaQuery.of(context).size.width) *(5.5/43),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Tab(text: "Subjects"),
-                          ],
-                        ),
-                    ),
-                    Container(
-                        width: (MediaQuery.of(context).size.width) *(7.5/43),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              child: Icon(Icons.arrow_forward_ios,
-                                size: (MediaQuery.of(context).size.width) *(15/428),),),
-                            SizedBox(width: (MediaQuery.of(context).size.width) *(5/428)),
-                            Tab(text: "Systems"),
-                          ],
-                        )
-                    ),
-                    Container(
-                        width: (MediaQuery.of(context).size.width) *(6.5/43),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              child: Icon(Icons.arrow_forward_ios,
-                                size: (MediaQuery.of(context).size.width) *(15/428),),),
-                            SizedBox(width: (MediaQuery.of(context).size.width) *(5/428)),
-                            Tab(text: "Topics"),
-                          ],
-                        )
-                    ),
-                    Container(
-                        width: (MediaQuery.of(context).size.width) *(8.5/43),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              child: Icon(Icons.arrow_forward_ios,
-                                size: (MediaQuery.of(context).size.width) *(15/428),),),
-                            SizedBox(width: (MediaQuery.of(context).size.width) *(5/428)),
-                            Tab(text: "Questions"),
-                          ],
-                        )
-                    ),
-                    Container(
-                        width: (MediaQuery.of(context).size.width) *(10.5/43),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              child: Icon(Icons.arrow_forward_ios,
-                                size: (MediaQuery.of(context).size.width) *(15/428),),),
-                            SizedBox(width: (MediaQuery.of(context).size.width) *(5/428)),
-                            Tab(text: "Generate Quiz"),
-                          ],
-                        )
-                    ),
-                  ],
-                ),
-              ),
               SizedBox(height: (MediaQuery.of(context).size.height) *(13.28/926),),
               Container(
                 height: (MediaQuery.of(context).size.height) *(596/926),
@@ -553,7 +460,8 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                         ),
                         SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
                         Container(
-                          width: (MediaQuery.of(context).size.width) *(386/428),
+                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                          width: (MediaQuery.of(context).size.width) *(366/428),
                             child: _hasDataLoaded == false ?
                             Container(height: (MediaQuery.of(context).size.height) *(460/926),child: Center(child: CircularProgressIndicator(color: Color(0xFF3F2668),)))
                                 :
@@ -580,7 +488,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                                   style: TextStyle(
                                                     color: subjectsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
                                                     fontFamily: 'Brandon-med',
-                                                    fontSize: (MediaQuery.of(context).size.height)*(19/926),
+                                                    fontSize: (MediaQuery.of(context).size.height)*(15/926),
                                                   ),),
                                                 onPressed: () {
                                                   setState(() {
@@ -732,7 +640,8 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                         ),
                         SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
                         Container(
-                          width: (MediaQuery.of(context).size.width) *(386/428),
+                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                          width: (MediaQuery.of(context).size.width) *(366/428),
                           child: Container(
                             height: (MediaQuery.of(context).size.height) *(460/926),
                             child: _hasDataLoaded == false ? Text("") : ListView(
@@ -756,7 +665,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                                 style: TextStyle(
                                                   color: systemsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
                                                   fontFamily: 'Brandon-med',
-                                                  fontSize: (MediaQuery.of(context).size.height)*(19/926),
+                                                  fontSize: (MediaQuery.of(context).size.height)*(15/926),
                                                 ),),
                                               onPressed: () {
                                                 if(_systemsDisabled == false) {
@@ -819,9 +728,34 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                                   getQuestionsCount();
                                                 }
                                                 else {
-                                                  ScaffoldMessenger.of(context)
-                                                    ..removeCurrentSnackBar()
-                                                    ..showSnackBar(SnackBar(content: Text("Select Subjects First!")));
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => AlertDialog(
+                                                      content: Text(
+                                                        'Select Subjects First!',
+                                                        style: TextStyle(
+                                                          color: Color(0xffA1A1A1),
+                                                          fontFamily: 'Brandon-bld',
+                                                          fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
+                                                        ),
+                                                      ),
+                                                      actions: <Widget>[
+                                                        Divider(),
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.of(context).pop();
+                                                          },
+                                                          child: Text('Okay',
+                                                              style: TextStyle(
+                                                                color: Color(0xff3F2668),
+                                                                fontFamily: 'Brandon-bld',
+                                                                fontSize:
+                                                                (MediaQuery.of(context).size.height) * (21 / 926),
+                                                              )),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
                                                 }
                                               },
                                             ),
@@ -911,7 +845,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                       children: [
                         Container(
                           height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(386/428),
+                          width: (MediaQuery.of(context).size.width) *(366/428),
                           //color: Colors.red,
                           decoration: BoxDecoration(
                             color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
@@ -936,7 +870,8 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                         ),
                         SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
                         Container(
-                          width: (MediaQuery.of(context).size.width) *(386/428),
+                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                          width: (MediaQuery.of(context).size.width) *(366/428),
                           child: Container(
                             height: (MediaQuery.of(context).size.height) *(460/926),
                             child: _hasDataLoaded == false ? Text("") : ListView(
@@ -960,7 +895,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                                 style: TextStyle(
                                                   color: topicsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
                                                   fontFamily: 'Brandon-med',
-                                                  fontSize: (MediaQuery.of(context).size.height)*(19/926),
+                                                  fontSize: (MediaQuery.of(context).size.height)*(15/926),
                                                 ),),
                                               onPressed: () {
                                                 if((_systemsDisabled == false) & (_topicsDisabled == false)) {
@@ -986,9 +921,34 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                                   });
                                                 }
                                                 else {
-                                                  ScaffoldMessenger.of(context)
-                                                    ..removeCurrentSnackBar()
-                                                    ..showSnackBar(SnackBar(content: Text("Select Systems First!")));
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (context) => AlertDialog(
+                                                      content: Text(
+                                                        'Select Systems First!',
+                                                        style: TextStyle(
+                                                          color: Color(0xffA1A1A1),
+                                                          fontFamily: 'Brandon-bld',
+                                                          fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
+                                                        ),
+                                                      ),
+                                                      actions: <Widget>[
+                                                        Divider(),
+                                                        TextButton(
+                                                          onPressed: () {
+                                                            Navigator.of(context).pop();
+                                                          },
+                                                          child: Text('Okay',
+                                                              style: TextStyle(
+                                                                color: Color(0xff3F2668),
+                                                                fontFamily: 'Brandon-bld',
+                                                                fontSize:
+                                                                (MediaQuery.of(context).size.height) * (21 / 926),
+                                                              )),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
                                                 }
                                                 // print(subjectsEverything["finalTitles"]);
                                                 // print(systemsEverything["finalTitles"]);
@@ -1107,7 +1067,8 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                         ),
                         SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
                         Container(
-                          width: (MediaQuery.of(context).size.width) *(386/428),
+                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                          width: (MediaQuery.of(context).size.width) *(366/428),
                           height: (MediaQuery.of(context).size.height) *(460/926),
                           child: Column(
                             children: [
@@ -1119,7 +1080,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                     children: [
                                       Container(
                                         height: (MediaQuery.of(context).size.height) *(40.224/926),
-                                        width: (MediaQuery.of(context).size.width) *(312/428),
+                                        width: (MediaQuery.of(context).size.width) *(302/428),
                                         color: _questionTypeSelectedBool[i] == false ? Colors.white : Color(0xFF3F2668),
                                         child: TextButton(
                                           style: TextButton.styleFrom(
@@ -1128,7 +1089,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                             style: TextStyle(
                                               color: _questionTypeSelectedBool[i] == false ? Color(0xFF3F3D56) : Colors.white,
                                               fontFamily: 'Brandon-med',
-                                              fontSize: (MediaQuery.of(context).size.height)*(19/926),
+                                              fontSize: (MediaQuery.of(context).size.height)*(15/926),
                                             ),),
                                           onPressed: () {
                                             _questionTypesLogic(i);
@@ -1144,7 +1105,8 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                         },
                                         child: Container(
                                           height: (MediaQuery.of(context).size.height) *(34.224/926),
-                                          width: (MediaQuery.of(context).size.width) *(29.224/428),
+                                          width: (MediaQuery.of(context).size.height) *(34.224/926),
+                                          // width: (MediaQuery.of(context).size.width) *(29.224/428),
                                           decoration: BoxDecoration(
                                             border: Border.all(width: 9, color: Color(0xFFA1A1A1)),
                                             borderRadius: BorderRadius.all(Radius.circular(50)),
@@ -1374,6 +1336,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                               if(_tutorMode == false) {
                                                 setState(() {
                                                   _tutorMode = true;
+                                                  print(_tutorMode);
                                                 });
                                               }
                                             },
@@ -1404,6 +1367,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                               if(_tutorMode == true) {
                                                 setState(() {
                                                   _tutorMode = false;
+                                                  // print(_tutorMode);
                                                 });
                                               }
                                             },
@@ -1423,7 +1387,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                   Row(
                                     children: [
                                       Transform.scale(
-                                        scale: 0.82,
+                                        scale: 1,
                                         child: Container(
                                           height: (MediaQuery.of(context).size.height) *(20/926),
                                           child: Switch(
@@ -1431,7 +1395,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                             onChanged: (value) {
                                               setState(() {
                                                 _timedMode = value;
-                                                print(_timedMode);
+                                                // print(_timedMode);
                                               });
                                             },
                                             activeColor: Color(0xff3F2668),
@@ -1443,7 +1407,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                           style: TextStyle(
                                               color: Color(0xff483A3A),
                                               fontFamily: 'Brandon-med',
-                                              fontSize: (MediaQuery.of(context).size.height) *(13/926)
+                                              fontSize: (MediaQuery.of(context).size.height) *(15/926)
                                           ),
                                         ),
                                       ),
@@ -1603,7 +1567,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                     if(_questionsCount > 0) {
                                       final result = Navigator.push(
                                         context,
-                                        MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions)),
+                                        MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions, timedMode: _timedMode,)),
                                       );
                                     }
                                   },
