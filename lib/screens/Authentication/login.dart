@@ -33,6 +33,7 @@ class _LoginState extends State<Login> {
   late UserModelUnsuccessfulLogin _unsuccessfulUser;
   var _invalidUsername = false;
   var _invalidPassword = false;
+  bool _isLoggingIn = false; // To start and finish CircularProgress Indicator
 
   //The data gets stored to local storage. Continue from there.
   AuthStorage storage = new AuthStorage();
@@ -68,7 +69,12 @@ class _LoginState extends State<Login> {
         }
       });
     }
-    Future.delayed(Duration(milliseconds: 1), () {
+    // Future.delayed(Duration(milliseconds: 1), () {
+    //   setState(() {
+    //     _loaded = true;
+    //   });
+    // });
+    Future.delayed(Duration(microseconds: 0), () {
       setState(() {
         _loaded = true;
       });
@@ -77,6 +83,9 @@ class _LoginState extends State<Login> {
 
   //https://demo.pookidevs.com/auth/login
   Future<void> getUserData(BuildContext context, String email, String password) async {
+    setState(() {
+      _isLoggingIn = true;
+    });
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final String apiUrl = "https://demo.pookidevs.com/auth/login";
     http.post(Uri.parse(apiUrl), headers: <String, String>{
@@ -98,6 +107,7 @@ class _LoginState extends State<Login> {
           final UserModelSuccessfulLogin successfulUser = loginData;
           setState(() {
             _successfulUser = successfulUser;
+            _isLoggingIn = false;
           });
           //Saves Token to use later.
           prefs.setString('token', _successfulUser.data.token);
@@ -177,109 +187,64 @@ class _LoginState extends State<Login> {
         //   ..showSnackBar(SnackBar(content: Text("")));
         return false;
       },
-      child: Scaffold(
-        backgroundColor: Color(0xff3F2668),//Color copied from xD=#3F2668
-        body: SingleChildScrollView(
-          child: Container(
-            height: (MediaQuery.of(context).size.height),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                AnimatedCrossFade(
-                  crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                  duration: _duration,
-                  firstChild: Container(
-                    height: (MediaQuery.of(context).size.height) *0.3,
-                    color: Colors.transparent,
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Image(
-                        image: AssetImage("assets/Images/login_topLeftBubble_1.png"),
+      child: GestureDetector(
+        onTap: () {
+          FocusScopeNode currentFocus = FocusScope.of(context);
+
+          if (!currentFocus.hasPrimaryFocus) {
+            currentFocus.unfocus();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: Color(0xff3F2668),//Color copied from xD=#3F2668
+          body: SingleChildScrollView(
+            child: Container(
+              height: (MediaQuery.of(context).size.height),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  AnimatedCrossFade(
+                    crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                    duration: _duration,
+                    firstChild: Container(
+                      height: (MediaQuery.of(context).size.height) *0.3,
+                      color: Colors.transparent,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Image(
+                          image: AssetImage("assets/Images/login_topLeftBubble_1.png"),
+                        ),
                       ),
                     ),
+                    secondChild: Container(
+                      height: (MediaQuery.of(context).size.height) *0.3,
+                      color: Colors.transparent,
+                      child: Text(""),
+                    ),
                   ),
-                  secondChild: Container(
-                    height: (MediaQuery.of(context).size.height) *0.3,
-                    color: Colors.transparent,
-                    child: Text(""),
-                  ),
-                ),
-                SizedBox(height: (MediaQuery.of(context).size.height) *0.02159,),
-                AnimatedCrossFade(
-                  crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                  duration: _duration,
-                  secondChild: Text(""),
-                  firstChild: Container(
-                    child: Form(
-                      key: _formKey,
-                      child: Stack(
-                        alignment: Alignment.bottomCenter,
-                        children: <Widget>[
-                          Column(//Add extra space at the end of the container(the one that has TextFormField) so that the login button can be aligned.
-                            children: [
-                                  Container(//For Borders of lighter area //Main Container to add Welcome, TextFormFields and Login.
-                                    //tbd: Get the color right!
-                                    margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(31/428), right: (MediaQuery.of(context).size.width) *(31/428),),
-                                    padding: EdgeInsets.only(top: 0, bottom: (MediaQuery.of(context).size.height) *0.0179, left: 0, right: 0,),
-                                    decoration: BoxDecoration(
-                                      color: Color.fromRGBO(176, 166, 194, 210),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                      borderRadius: BorderRadius.all(Radius.circular(10)),
-                                      border: Border.all(
-                                        color: Color(0xff757575),
-                                        width: 0,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Color(0xff0000004D),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                    children: <Widget>[
-                                      Container(
-                                        padding: EdgeInsets.only(top: (MediaQuery.of(context).size.height) *0.020518, bottom: 0, left: 0, right: 0,),
-                                        child: Text("Welcome!",
-                                        style: TextStyle(
-                                          color: Color(0xffFFFEFE),
-                                          fontFamily: 'Brandon-bld',
-                                          fontSize: (MediaQuery.of(context).size.height) *0.0410,//38,
-                                        ),),
-                                      ),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 0,),
-                                            child: Text("Don't have an account?",
-                                              style: TextStyle(
-                                                color: Color.fromRGBO(255, 255, 255, 100),
-                                                fontFamily: 'Brandon-med',
-                                                fontSize: (MediaQuery.of(context).size.height)*0.0194,
-                                              ),),
-                                          ),
-                                          Container(
-                                            padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 0,),
-                                            child: Text(" Sign Up",
-                                              style: TextStyle(
-                                                color: Color(0xffFFFEFE),
-                                                fontFamily: 'Brandon-med',
-                                                fontSize: (MediaQuery.of(context).size.height)*0.0194,
-                                              ),),
-                                          ),
-                                        ],
-                                      ),
-                                    SizedBox(height: (MediaQuery.of(context).size.height)*0.04535,),
-                                    Container(
-                                      //color: Colors.white,
-                                      height: (MediaQuery.of(context).size.height)*0.055,
-                                      //padding: EdgeInsets.fromLTRB(20.0, (MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top)*0.0037797, 20.0, (MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top)*0.0037797),
-                                      margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: (MediaQuery.of(context).size.width) *(45/428),),
+                  SizedBox(height: (MediaQuery.of(context).size.height) *0.02159,),
+                  AnimatedCrossFade(
+                    crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                    duration: _duration,
+                    secondChild: Text(""),
+                    firstChild: Container(
+                      child: Form(
+                        key: _formKey,
+                        child: Stack(
+                          alignment: Alignment.bottomCenter,
+                          children: <Widget>[
+                            Column(//Add extra space at the end of the container(the one that has TextFormField) so that the login button can be aligned.
+                              children: [
+                                    Container(//For Borders of lighter area //Main Container to add Welcome, TextFormFields and Login.
+                                      //tbd: Get the color right!
+                                      margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(31/428), right: (MediaQuery.of(context).size.width) *(31/428),),
+                                      padding: EdgeInsets.only(top: 0, bottom: (MediaQuery.of(context).size.height) *0.0179, left: 0, right: 0,),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: Color.fromRGBO(176, 166, 194, 210),//0xffB0A6C2, rgba(176, 166, 194, 1)
                                         borderRadius: BorderRadius.all(Radius.circular(10)),
                                         border: Border.all(
-                                          color: _invalidUsername == true ? Colors.red : Color(0xff757575),
-                                          width: _invalidUsername == true ? 3 : 1,
+                                          color: Color(0xff757575),
+                                          width: 0,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
@@ -287,58 +252,52 @@ class _LoginState extends State<Login> {
                                           ),
                                         ],
                                       ),
-                                      child: TextFormField(
-                                        decoration: InputDecoration(
-                                          suffixIcon: _invalidUsername == true ? Text("!  ",
-                                            style: TextStyle(
-                                              color: Colors.red,
-                                              fontSize: (MediaQuery.of(context).size.height)*(20/926),
-                                              fontFamily: 'Brandon-med',
-                                            ),) : Text(""),
-                                          suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
-                                          hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _email : "Username"),
-                                          hintStyle: TextStyle(color: _dataPreviouslyStored ? Color(0xff171616) : Color(0xffAEAEAE),
-                                            fontSize: (MediaQuery.of(context).size.height)*(20/926),
-                                            fontFamily: 'Brandon-med',),
-                                          contentPadding: EdgeInsets.fromLTRB(20.0, (MediaQuery.of(context).size.height)*0.0037797, 20.0, (MediaQuery.of(context).size.height)*0.0037797),
-                                          enabledBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Colors.transparent,
-                                              width: 0.0,
-                                            ),
-                                            borderRadius: BorderRadius.circular(10.0),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: Colors.transparent,
-                                              width: 0.0,
-                                            ),
-                                          ),
+                                      child: Column(
+                                      children: <Widget>[
+                                        Container(
+                                          padding: EdgeInsets.only(top: (MediaQuery.of(context).size.height) *0.020518, bottom: 0, left: 0, right: 0,),
+                                          child: Text("Welcome!",
+                                          style: TextStyle(
+                                            color: Color(0xffFFFEFE),
+                                            fontFamily: 'Brandon-bld',
+                                            fontSize: (MediaQuery.of(context).size.height) *0.0410,//38,
+                                          ),),
                                         ),
-                                        //validator: (val) => val!.isEmpty ? "Please enter a Username." : null,
-                                        onChanged: (val) {
-                                          _dataPreviouslyStored == null ? val = "" :
-                                          (_dataPreviouslyStored ? val = _email : _email = val);
-                                          //_email = val;
-                                        },
-                                        style: TextStyle(
-                                          color: Colors.black,
-                                          fontSize: (MediaQuery.of(context).size.height)*(20/926),
-                                          fontFamily: 'Brandon-med',
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 0,),
+                                              child: Text("Don't have an account?",
+                                                style: TextStyle(
+                                                  color: Color.fromRGBO(255, 255, 255, 100),
+                                                  fontFamily: 'Brandon-med',
+                                                  fontSize: (MediaQuery.of(context).size.height)*0.0194,
+                                                ),),
+                                            ),
+                                            Container(
+                                              padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: 0,),
+                                              child: Text(" Sign Up",
+                                                style: TextStyle(
+                                                  color: Color(0xffFFFEFE),
+                                                  fontFamily: 'Brandon-med',
+                                                  fontSize: (MediaQuery.of(context).size.height)*0.0194,
+                                                ),),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ),
-                                      SizedBox(height: (MediaQuery.of(context).size.height)*0.0226781,),
+                                      SizedBox(height: (MediaQuery.of(context).size.height)*0.04535,),
                                       Container(
                                         //color: Colors.white,
                                         height: (MediaQuery.of(context).size.height)*0.055,
+                                        //padding: EdgeInsets.fromLTRB(20.0, (MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top)*0.0037797, 20.0, (MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top)*0.0037797),
                                         margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: (MediaQuery.of(context).size.width) *(45/428),),
                                         decoration: BoxDecoration(
                                           color: Colors.white,
                                           borderRadius: BorderRadius.all(Radius.circular(10)),
                                           border: Border.all(
-                                            color: _invalidPassword == true ? Colors.red : Color(0xff757575),
-                                            width: _invalidPassword == true ? 3 : 1,
+                                            color: _invalidUsername == true ? Colors.red : Color(0xff757575),
+                                            width: _invalidUsername == true ? 3 : 1,
                                           ),
                                           boxShadow: [
                                             BoxShadow(
@@ -347,17 +306,17 @@ class _LoginState extends State<Login> {
                                           ],
                                         ),
                                         child: TextFormField(
-                                          obscureText: true,
+                                          keyboardType: TextInputType.emailAddress,
                                           decoration: InputDecoration(
-                                            suffixIcon: _invalidPassword == true ? Text("!  ",
+                                            suffixIcon: _invalidUsername == true ? Text("!  ",
                                               style: TextStyle(
                                                 color: Colors.red,
                                                 fontSize: (MediaQuery.of(context).size.height)*(20/926),
                                                 fontFamily: 'Brandon-med',
                                               ),) : Text(""),
                                             suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
-                                            hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _password : "Password"),
-                                            hintStyle: TextStyle(color: _dataPreviouslyStored ? Colors.black : Color(0xffAEAEAE),
+                                            hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _email : "Username"),
+                                            hintStyle: TextStyle(color: _dataPreviouslyStored ? Color(0xff171616) : Color(0xffAEAEAE),
                                               fontSize: (MediaQuery.of(context).size.height)*(20/926),
                                               fontFamily: 'Brandon-med',),
                                             contentPadding: EdgeInsets.fromLTRB(20.0, (MediaQuery.of(context).size.height)*0.0037797, 20.0, (MediaQuery.of(context).size.height)*0.0037797),
@@ -375,12 +334,11 @@ class _LoginState extends State<Login> {
                                               ),
                                             ),
                                           ),
-                                          //validator: (val) => val!.isEmpty ? "Please enter a Password." : null,
+                                          //validator: (val) => val!.isEmpty ? "Please enter a Username." : null,
                                           onChanged: (val) {
-                                            setState(() {
-                                              _dataPreviouslyStored == null ? val = "" :
-                                              (_dataPreviouslyStored ? val = _password : _password = val);
-                                            });
+                                            _dataPreviouslyStored == null ? val = "" :
+                                            (_dataPreviouslyStored ? val = _email : _email = val);
+                                            //_email = val;
                                           },
                                           style: TextStyle(
                                             color: Colors.black,
@@ -389,141 +347,249 @@ class _LoginState extends State<Login> {
                                           ),
                                         ),
                                       ),
-                                      SizedBox(height: (MediaQuery.of(context).size.height)*0.024838,),
-                                      GestureDetector(
-                                        onTap: () {
-                                          if(_isChecked == false)
-                                            setState(() {
-                                              _isChecked = true;
-                                            });
-                                          else if(_isChecked == true)
-                                            setState(() {
-                                              _isChecked = false;
-                                            });
-                                        },
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Row(
-                                              mainAxisAlignment: MainAxisAlignment.start,
-                                              children: [
-                                                Container(
-                                                  margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
-                                                  height: (MediaQuery.of(context).size.height)*0.0167,
-                                                  width: (MediaQuery.of(context).size.height)*0.0167,
-                                                  color: Colors.white,
-                                                    child: Transform.scale(
-                                                      scale: (MediaQuery.of(context).size.height)*0.001,
-                                                      child: Checkbox(
-                                                        side: BorderSide(
-                                                          color: Color(0xffB0A6C2),
-                                                          width: 0,
-                                                        ),
-                                                        checkColor: Colors.white,
-                                                        value: _isChecked,
-                                                        onChanged: (bool? value) {
-                                                          setState(() {
-                                                            _isChecked = value!;
-                                                          });
-                                                        },
-                                                      ),
-                                                    ),
-                                                ),
-                                                Container(
-                                                  padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
-                                                  child: Text("Remember me!",
-                                                    style: TextStyle(
-                                                      color: Color.fromRGBO(255, 255, 255, 100),
-                                                      fontFamily: 'Brandon-med',
-                                                      fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                                    ),),
-                                                ),
-                                              ],
+                                        SizedBox(height: (MediaQuery.of(context).size.height)*0.0226781,),
+                                        Container(
+                                          //color: Colors.white,
+                                          height: (MediaQuery.of(context).size.height)*0.055,
+                                          margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: (MediaQuery.of(context).size.width) *(45/428),),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.all(Radius.circular(10)),
+                                            border: Border.all(
+                                              color: _invalidPassword == true ? Colors.red : Color(0xff757575),
+                                              width: _invalidPassword == true ? 3 : 1,
                                             ),
-                                            Container(
-                                              padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
-                                              child: Text("Forgot Password?",
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Color(0xff0000004D),
+                                              ),
+                                            ],
+                                          ),
+                                          child: TextFormField(
+                                            //keyboardType: TextInputType.visiblePassword,
+                                            obscureText: true,
+                                            decoration: InputDecoration(
+                                              suffixIcon: _invalidPassword == true ? Text("!  ",
                                                 style: TextStyle(
-                                                  color: Color(0xffFFFEFE),
+                                                  color: Colors.red,
+                                                  fontSize: (MediaQuery.of(context).size.height)*(20/926),
                                                   fontFamily: 'Brandon-med',
-                                                  fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                                ),),
+                                                ),) : Text(""),
+                                              suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
+                                              hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _password : "Password"),
+                                              hintStyle: TextStyle(color: _dataPreviouslyStored ? Colors.black : Color(0xffAEAEAE),
+                                                fontSize: (MediaQuery.of(context).size.height)*(20/926),
+                                                fontFamily: 'Brandon-med',),
+                                              contentPadding: EdgeInsets.fromLTRB(20.0, (MediaQuery.of(context).size.height)*0.0037797, 20.0, (MediaQuery.of(context).size.height)*0.0037797),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: Colors.transparent,
+                                                  width: 0.0,
+                                                ),
+                                                borderRadius: BorderRadius.circular(10.0),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: Colors.transparent,
+                                                  width: 0.0,
+                                                ),
+                                              ),
                                             ),
-                                          ],
+                                            //validator: (val) => val!.isEmpty ? "Please enter a Password." : null,
+                                            onChanged: (val) {
+                                              setState(() {
+                                                _dataPreviouslyStored == null ? val = "" :
+                                                (_dataPreviouslyStored ? val = _password : _password = val);
+                                              });
+                                            },
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: (MediaQuery.of(context).size.height)*(20/926),
+                                              fontFamily: 'Brandon-med',
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      SizedBox(height: (MediaQuery.of(context).size.height) *0.0864,),
-                                ],
-                              ),
-                                  ),
-                              SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
-                            ],
-                          ),
-                          GestureDetector(
-                            child: Container(//Login button
-                              child: Align(
-                                alignment: Alignment.center,
-                                child: SvgPicture.asset(
-                                    "assets/Images/login.svg",
-                                  height: (MediaQuery.of(context).size.height) *0.0486,
+                                        SizedBox(height: (MediaQuery.of(context).size.height)*0.024838,),
+                                        Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () {
+                                                  if(_isChecked == false)
+                                                    setState(() {
+                                                      _isChecked = true;
+                                                    });
+                                                  else if(_isChecked == true)
+                                                    setState(() {
+                                                      _isChecked = false;
+                                                    });
+                                                },
+                                                child: Row(
+                                                  mainAxisAlignment: MainAxisAlignment.start,
+                                                  children: [
+                                                    Container(
+                                                      margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
+                                                      height: (MediaQuery.of(context).size.height)*0.0167,
+                                                      width: (MediaQuery.of(context).size.height)*0.0167,
+                                                      color: Colors.white,
+                                                        child: Transform.scale(
+                                                          scale: (MediaQuery.of(context).size.height)*0.001,
+                                                          child: Checkbox(
+                                                            side: BorderSide(
+                                                              color: Color(0xffB0A6C2),
+                                                              width: 0,
+                                                            ),
+                                                            checkColor: Colors.white,
+                                                            value: _isChecked,
+                                                            onChanged: (bool? value) {
+                                                              setState(() {
+                                                                _isChecked = value!;
+                                                              });
+                                                            },
+                                                          ),
+                                                        ),
+                                                    ),
+                                                    Container(
+                                                      padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
+                                                      child: Text("Remember me!",
+                                                        style: TextStyle(
+                                                          color: Color.fromRGBO(255, 255, 255, 100),
+                                                          fontFamily: 'Brandon-med',
+                                                          fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                        ),),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
+                                                child: Text("Forgot Password?",
+                                                  style: TextStyle(
+                                                    color: Color(0xffFFFEFE),
+                                                    fontFamily: 'Brandon-med',
+                                                    fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                  ),),
+                                              ),
+                                            ],
+                                          ),
+                                        _isLoggingIn ? Container() : SizedBox(height: (MediaQuery.of(context).size.height) *0.0864,),
+                                        _isLoggingIn ? Container(
+                                          height: (MediaQuery.of(context).size.height) *0.0864,
+                                          child: Container(
+                                            alignment: Alignment.center,
+                                            height: (MediaQuery.of(context).size.height) *0.0664,
+                                              child: CircularProgressIndicator(color: Colors.white,)),
+                                        ) : Container(),
+                                      ],
                                 ),
+                                    ),
+                                SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
+                              ],
+                            ),
+                            // GestureDetector(
+                            //   child: Container(//Login button
+                            //     child: Align(
+                            //       alignment: Alignment.center,
+                            //       child: SvgPicture.asset(
+                            //           "assets/Images/login.svg",
+                            //         height: (MediaQuery.of(context).size.height) *0.0486,
+                            //       ),
+                            //     ),
+                            //   ),
+                            //   onTap: () {
+                            //     if(_formKey.currentState!.validate()) {
+                            //       //_navigateAndDisplaySelection(context);
+                            //       //print(_isChecked);
+                            //       getUserData(context, _email, _password);
+                            //     }
+                            //   },
+                            // ),
+                            Container(
+                              height: (MediaQuery.of(context).size.height) *(45/926),
+                              width: (MediaQuery.of(context).size.width) *(150/428),
+                              decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: <Color>[
+                                        Color(0xff7F1AF1),
+                                        Color(0xff482384)
+                                      ]),
+                                  borderRadius: new BorderRadius.only(
+                                    bottomLeft: const Radius.circular(20.0),
+                                    topRight: const Radius.circular(20.0),
+                                  )
+                              ),
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                ),
+                                onPressed: () {
+                                  // setState(() {
+                                  //   _isLoggingIn = !_isLoggingIn;
+                                  // });
+                                  if(_formKey.currentState!.validate()) {
+                                    //_navigateAndDisplaySelection(context);
+                                    // print(_isChecked);
+                                    getUserData(context, _email, _password);
+                                  }
+                                },
+                                child: Text("Login",
+                                  style: TextStyle(
+                                    color: Color(0xffFFFEFE),
+                                    fontFamily: 'Brandon-bld',
+                                    fontSize: (MediaQuery.of(context).size.height)*(25/926),
+                                  ),),
                               ),
                             ),
-                            onTap: () {
-                              if(_formKey.currentState!.validate()) {
-                                //_navigateAndDisplaySelection(context);
-                                //print(_isChecked);
-                                getUserData(context, _email, _password);
-                              }
-                            },
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                AnimatedCrossFade(
-                  crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-                  duration: _duration,
-                  secondChild: Container(
-                      height: (MediaQuery.of(context).size.height) *0.183,
-                      child: Text("")),
-                  firstChild: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    //crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Stack(
-                        //alignment: Alignment.centerRight,
-                        children: [
-                          Positioned(
-                            left: (MediaQuery.of(context).size.height) *(80/926),
-                            top: (MediaQuery.of(context).size.height) *(50/926),
-                            child: Align(
-                              alignment: Alignment.bottomRight,
-                              child: SvgPicture.asset(
-                                "assets/Images/login_bottomRight.svg",
-                                height: (MediaQuery.of(context).size.height) *0.183,
-                                width: (MediaQuery.of(context).size.height) *0.183,
-                              ),
-                            ),
-                          ),
-                          Positioned(//Remove and add again
+                  AnimatedCrossFade(
+                    crossFadeState: _loaded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                    duration: _duration,
+                    secondChild: Container(
+                        height: (MediaQuery.of(context).size.height) *0.183,
+                        child: Text("")),
+                    firstChild: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      //crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Stack(
+                          //alignment: Alignment.centerRight,
+                          children: [
+                            Positioned(
+                              left: (MediaQuery.of(context).size.height) *(80/926),
+                              top: (MediaQuery.of(context).size.height) *(50/926),
                               child: Align(
                                 alignment: Alignment.bottomRight,
                                 child: SvgPicture.asset(
                                   "assets/Images/login_bottomRight.svg",
                                   height: (MediaQuery.of(context).size.height) *0.183,
                                   width: (MediaQuery.of(context).size.height) *0.183,
-                                  color: Colors.transparent,
                                 ),
                               ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            ),
+                            Positioned(//Remove and add again
+                                child: Align(
+                                  alignment: Alignment.bottomRight,
+                                  child: SvgPicture.asset(
+                                    "assets/Images/login_bottomRight.svg",
+                                    height: (MediaQuery.of(context).size.height) *0.183,
+                                    width: (MediaQuery.of(context).size.height) *0.183,
+                                    color: Colors.transparent,
+                                  ),
+                                ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

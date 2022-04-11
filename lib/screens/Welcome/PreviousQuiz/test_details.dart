@@ -1,11 +1,17 @@
+import 'dart:convert';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:testify/models/GetPreviousQuizzesModel/ResumeQuiz/resume_quiz_model.dart';
+import 'package:testify/screens/Welcome/PreviousQuiz/previous_quiz.dart';
+import 'package:http/http.dart' as http;
+import 'package:testify/screens/Welcome/QuizModule/quiz_module.dart';
 import '../../Authentication/login.dart';
 import '../side_menu_bar.dart';
 
-class TestDetails extends StatelessWidget {
+class TestDetails extends StatefulWidget {
   final int quizId;
   final List<dynamic> system;
   final List<dynamic> subject;
@@ -19,6 +25,61 @@ class TestDetails extends StatelessWidget {
         required this.topic,
         required this.status,
         required this.score});
+
+  @override
+  State<TestDetails> createState() => _TestDetailsState();
+}
+
+class _TestDetailsState extends State<TestDetails> {
+  var _token;
+  var _userId;
+  var _resumeQuizSuccessful;
+
+  @override
+  void initState() {
+    super.initState();
+    ResumeQuizAPI();
+  }
+
+  Future<void> ResumeQuizAPI() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/resumeQuiz";
+    _token = prefs.getString('token')!;
+    print(_token);
+    _userId = prefs.getInt("userId")!;
+    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
+      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
+    }, body: json.encode(
+        {
+          "quizId": widget.quizId
+        })
+    ).then((response) {
+      // print(jsonDecode(response.body).toString());
+      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+        final responseString = (response.body);
+        var resumeQuizSuccessful1 = resumeQuizModelFromJson(responseString);
+        final ResumeQuizModel resumeQuizSuccessful = resumeQuizSuccessful1;
+        setState(() {
+          _resumeQuizSuccessful = resumeQuizSuccessful;
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTotalQuestions);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizQuestions);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizId.runtimeType);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizScore.runtimeType);
+          // _quizId = _getGenerateQuizSuccessful.data.quizId;
+          // print(_quizId);
+        });
+        // categoriesGenerateQuizData();
+      }
+      else { // Token Invalid
+
+      }
+    }
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,7 +127,7 @@ class TestDetails extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    height: (MediaQuery.of(context).size.height) * (488 / 926),
+                    // height: (MediaQuery.of(context).size.height) * (488 / 926),
                     width: (MediaQuery.of(context).size.width) * (385 / 428),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(2),
@@ -94,7 +155,7 @@ class TestDetails extends StatelessWidget {
                           ),
                         ),
                         Container(
-                          height: (MediaQuery.of(context).size.height) * (310 / 926),
+                          // height: (MediaQuery.of(context).size.height) * (310 / 926),
                           width: (MediaQuery.of(context).size.width) * (385 / 428),
                           padding: EdgeInsets.all(25),
                           child: Table(
@@ -125,7 +186,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(quizId.toString(),
+                                      Text(widget.quizId.toString(),
                                           textAlign: TextAlign.start,
                                           style: TextStyle(
                                             color: Colors.black,
@@ -160,7 +221,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(system.toString().substring(1, system.toString().length-1) == "" ? "-" : system.toString().substring(1, system.toString().length-1),
+                                      Text(widget.system.toString().substring(1, widget.system.toString().length-1) == "" ? "-" : widget.system.toString().substring(1, widget.system.toString().length-1),
                                           style: TextStyle(
                                             color: Colors.black,
                                             fontFamily: 'Brandon-med',
@@ -194,7 +255,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(subject.toString().substring(1, subject.toString().length-1) == "" ? "-" : subject.toString().substring(1, subject.toString().length-1),
+                                      Text(widget.subject.toString().substring(1, widget.subject.toString().length-1) == "" ? "-" : widget.subject.toString().substring(1, widget.subject.toString().length-1),
                                           style: TextStyle(
                                             color: Colors.black,
                                             fontFamily: 'Brandon-med',
@@ -228,7 +289,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(topic.toString().substring(1, topic.toString().length-1) == "" ? "-" : topic.toString().substring(1, topic.toString().length-1),
+                                      Text(widget.topic.toString().substring(1, widget.topic.toString().length-1) == "" ? "-" : widget.topic.toString().substring(1, widget.topic.toString().length-1),
                                           style: TextStyle(
                                             color: Colors.black,
                                             fontFamily: 'Brandon-med',
@@ -262,7 +323,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(score,
+                                      Text(widget.score,
                                           style: TextStyle(
                                             color: Colors.black,
                                             fontFamily: 'Brandon-med',
@@ -296,7 +357,7 @@ class TestDetails extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(status,
+                                      Text(widget.status,
                                           style: TextStyle(
                                             color: Colors.black,
                                             fontFamily: 'Brandon-med',
@@ -339,16 +400,41 @@ class TestDetails extends StatelessWidget {
                                   ),)
                                 ],
                               ),
-                              Column(
-                                children: [
-                                  Container(height:40,width:40,decoration: BoxDecoration(color: Color(0xff7F1AF1),borderRadius: BorderRadius.circular(20)),
-                                      child: Icon(Icons.arrow_right,size: 40,color:Colors.white))
-                                  ,Text('Resume',style: TextStyle(
-                                    color: Color(0xff7F1AF1),
-                                    fontFamily: 'Brandon-med',
-                                    fontSize: (MediaQuery.of(context).size.height) * (15 / 926),
-                                  ),)
-                                ],
+                              GestureDetector(
+                                onTap: () async {
+                                  // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
+                                  // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTotalQuestions);
+                                  // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizQuestions);
+                                  // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed);
+                                  SharedPreferences prefs = await SharedPreferences.getInstance();
+                                  prefs.setInt("quizId", widget.quizId);
+                                  List<int> _quizQuestions = [];
+                                  for(int i = 0; i<_resumeQuizSuccessful.data.questions.length; i++) {
+                                    _quizQuestions.add(_resumeQuizSuccessful.data.questions[i].id);
+                                  }
+
+                                  // Navigator.of(context)
+                                  //     .popUntil(ModalRoute.withName("/home"));
+                                  final result = Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTotalQuestions,
+                                      questions: _quizQuestions,
+                                      timedMode: _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed,
+                                      mode: _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode.toString(),
+                                      whatsDone: "resumed",)),
+                                  );
+                                },
+                                child: Column(
+                                  children: [
+                                    Container(height:40,width:40,decoration: BoxDecoration(color: Color(0xff7F1AF1),borderRadius: BorderRadius.circular(20)),
+                                        child: Icon(Icons.arrow_right,size: 40,color:Colors.white))
+                                    ,Text('Resume',style: TextStyle(
+                                      color: Color(0xff7F1AF1),
+                                      fontFamily: 'Brandon-med',
+                                      fontSize: (MediaQuery.of(context).size.height) * (15 / 926),
+                                    ),)
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -361,8 +447,14 @@ class TestDetails extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: InkWell(
-                      onTap:(){
-                        Navigator.of(context).pop();
+                      onTap:() async {
+                        // Navigator.of(context).pop();
+                        Navigator.of(context)
+                            .popUntil(ModalRoute.withName("/home"));
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => PreviousQuiz()),
+                        );
                       },
                       child:Container(
                     child: Row(

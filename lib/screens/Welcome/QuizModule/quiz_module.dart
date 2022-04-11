@@ -7,8 +7,10 @@ import 'package:flutter_countdown_timer/current_remaining_time.dart';
 import 'package:flutter_countdown_timer/flutter_countdown_timer.dart';
 import 'package:http/http.dart' as http;
 import 'package:testify/models/GenerateQuizModels/QuizModuleModels/generate_quiz_model.dart';
+import 'package:testify/models/GetPreviousQuizzesModel/ResumeQuiz/resume_quiz_model.dart';
 import 'package:testify/screens/Authentication/login.dart';
 import 'package:testify/screens/Welcome/QuizModule/question_explanation.dart';
+import 'package:testify/screens/Welcome/QuizModule/quiz_final.dart';
 import 'package:testify/screens/Welcome/QuizModule/search_bar.dart';
 import 'package:testify/screens/Welcome/side_menu_bar.dart';
 import 'package:testify/screens/Welcome//QuizModule/calculator.dart';
@@ -17,16 +19,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/cupertino.dart';
 
 class QuizModule extends StatefulWidget {
-  const QuizModule({Key? key, required this.totalQuestions, required this.questions, required this.timedMode}) : super(key: key);
+  const QuizModule({Key? key, required this.totalQuestions, required this.questions, required this.timedMode, required this.mode, required this.whatsDone}) : super(key: key);
 
   final int totalQuestions;
   final List<int> questions;
   final bool timedMode;
+  final String mode;
+  final String whatsDone; // new(From Generate Quiz), resumed, reviewed
   @override
   _QuizModuleState createState() => _QuizModuleState();
 }
 
-class _QuizModuleState extends State<QuizModule> {
+class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
   int endTime = DateTime.now().millisecondsSinceEpoch + 1000 * 30;
   List<String> _questions = ['1', '2', '3', '4'];
   String _currentQuestion = '1';
@@ -54,6 +58,7 @@ class _QuizModuleState extends State<QuizModule> {
 
   //Model Data
   var _getGenerateQuizSuccessful;
+  var _resumeQuizSuccessful;
   var _quizId;
 
   //Changing quiz questions
@@ -85,6 +90,8 @@ class _QuizModuleState extends State<QuizModule> {
     "statistics": [], // [1, 0, 0]
     "answeredCorrectly": [], // Stores string and turns true if answered correctly. Can't be a bool since values are correct/incorrect/notAnswered
     "optionSelectedInt": [], //To change Icon and color
+    "notes": [],
+    "submitData": [],
     // "isSelected": []
   };
 
@@ -92,7 +99,12 @@ class _QuizModuleState extends State<QuizModule> {
   void initState() {
     super.initState();
     _textController = TextEditingController();
-    GenerateQuizAPI();
+    WidgetsBinding.instance!.addObserver(this);
+    if(widget.whatsDone == "new")
+      GenerateQuizAPI();
+    else if(widget.whatsDone == "resumed")
+      ResumeQuizAPI();
+
     timer = Timer.periodic(
       const Duration(seconds: 1),
           (timer) {
@@ -110,15 +122,79 @@ class _QuizModuleState extends State<QuizModule> {
     // );
   }
 
-  Future<void> submitAnswerAPI(int? indexOfOptionThatIsActuallyCorrect, int? correct, int? optionIndexSelected) async {
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/submitAnswer";
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    super.didChangeAppLifecycleState(state);
 
-    // print("user id: "+ _userId.toString());
-    // print("questionId: "+ questionsData["id"]![questionNumber].toString());
-    // print("quizId: "+ _getGenerateQuizSuccessful.data.quizId.toString());
-    // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
-    // print("correct: " + correct.toString());
-    // print("optionIndexSelected: " + optionIndexSelected.toString());
+    final isBackground = state == AppLifecycleState.paused;
+    final isClosed = state == AppLifecycleState.detached;
+    if(isBackground) { // As soon as the user closes the app this runs. The application is still in the app switcher(ram)
+      print("xD in Background");
+      SaveQuizAPI("suspended");
+      // ScaffoldMessenger.of(context)
+      //   ..removeCurrentSnackBar()
+      //   ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as Suspended!")));
+      Navigator.of(context).pop();
+    }
+    if(isClosed) { // When app is closed from the app switcher. Doesn't run for now for some odd reason.
+      print("xD Closed");
+    }
+  }
+
+  Future<void> ResumeQuizAPI() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/resumeQuiz";
+    var quizID = prefs.getInt("quizId");
+    _token = prefs.getString('token')!;
+    print(_token);
+    _userId = prefs.getInt("userId")!;
+    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
+      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
+    }, body: json.encode(
+        {
+          "quizId": quizID
+        })
+    ).then((response) {
+      // print(jsonDecode(response.body).toString());
+      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+        final responseString = (response.body);
+        var resumeQuizSuccessful1 = resumeQuizModelFromJson(responseString);
+        final ResumeQuizModel resumeQuizSuccessful = resumeQuizSuccessful1;
+        setState(() {
+          _resumeQuizSuccessful = resumeQuizSuccessful;
+          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
+          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTotalQuestions);
+          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizQuestions);
+          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus);
+          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizId.runtimeType);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizScore.runtimeType);
+          // _quizId = _getGenerateQuizSuccessful.data.quizId;
+          // print(_quizId);
+        });
+        categoriesGenerateQuizData();
+        // categoriesGenerateQuizData();
+      }
+      else { // Token Invalid
+
+      }
+    }
+    );
+  }
+
+  Future<void> submitAnswerAPI(int? indexOfOptionThatIsActuallyCorrect, int? correct, int? optionIndexSelected) async { // doesn't work properly in exam mode
+    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/submitAnswer";
+    // print(_token);
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    var _quizID = prefs.getInt("quizId");
+
+    print(widget.whatsDone);
+    print("user id: "+ _userId.toString());
+    print("questionId: "+ questionsData["id"]![questionNumber].toString());
+    print("quizId" + _quizID.toString());
+    print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+    print("correct: " + correct.toString());
+    print("optionIndexSelected: " + optionIndexSelected.toString());
 
 
 
@@ -129,7 +205,8 @@ class _QuizModuleState extends State<QuizModule> {
           "data":{
             "userId": _userId.toString(),
             "questionId": questionsData["id"]![questionNumber].toString(),
-            "quizId": _getGenerateQuizSuccessful.data.quizId.toString(),
+            // "quizId": widget.whatsDone == "new" ? _getGenerateQuizSuccessful.data.quizId.toString() : _resumeQuizSuccessful.data.previousQuizzes[0].quizId.toString(),
+            "quizId": _quizID.toString(),
             "answerMeta":{
               "index": questionsData["id"]![questionNumber].toString(),
               "Correctanswerindex": indexOfOptionThatIsActuallyCorrect.toString(), // indexOfOptionThatIsActuallyCorrect
@@ -139,10 +216,9 @@ class _QuizModuleState extends State<QuizModule> {
           }
         })
     ).then((response) {
-      // print(jsonDecode(response.body).toString());
       if((response.statusCode == 200)) {
         print(jsonDecode(response.body).toString());
-        if(jsonDecode(response.body) == "{data: {status: true, message: Answer Submitted}}") {
+        if((jsonDecode(response.body).toString()) == "{data: {status: true, message: Answer Submitted}}") {
 
         } else {
           ScaffoldMessenger.of(context)
@@ -151,75 +227,129 @@ class _QuizModuleState extends State<QuizModule> {
         }
       }
       else { // Token Invalid
-
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
+        final result = Navigator.pushAndRemoveUntil<void>(
+          context,
+          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          ModalRoute.withName('/'),
+        );
       }
     }
     );
   }
 
 
-  Future<void> SaveQuizAPI() async {
+  Future<void> SaveQuizAPI(String saveAs, [bool? hasUserClicked]) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    prefs.setInt("quizId", _getGenerateQuizSuccessful.data.quizId);
+    widget.whatsDone == "new" ? prefs.setInt("quizId", _getGenerateQuizSuccessful.data.quizId) : null;
     final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/saveQuiz";
-
+    print(widget.totalQuestions);
     var date = new DateTime.now().toString().split(".");
+    date = date[0].split(" ");
+    print(date);
     int quizScore = 0;
-    bool allQuestionsAreAnswered = true;
-    int totalQuizTime = timeElapsed;
+    var addToOmittedQuestionsArray = [];
+    var totalQuizTime = timeElapsed.toString();
     for(int i = 0; i<questionsData["answeredCorrectly"]!.length; i++) {
       if(questionsData["answeredCorrectly"]![i] == "correct") {
         quizScore++;
       }
     }
-    for(int i = 0; i<questionsData["answeredCorrectly"]!.length; i++) {
-      if(questionsData["answeredCorrectly"]![i] == "notAnswered") {
-        allQuestionsAreAnswered = false;
-        break;
+    if(saveAs == "completed") {
+      for(int i = 0; i<questionsData["answeredCorrectly"]!.length; i++) {
+        if(questionsData["answeredCorrectly"]![i] == "notAnswered") {
+          var addToOmittedQuestions = {
+              "index": questionsData["id"]![i].toString(),
+              "Correctanswerindex": "-1", // indexOfOptionThatIsActuallyCorrect
+              "correct": "-1", // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+              "optionIndexSelected": "-1"
+          };
+          addToOmittedQuestionsArray.add(addToOmittedQuestions);
+        }
       }
     }
-    print(totalQuizTime);
+    if(saveAs == "suspended") {
+      addToOmittedQuestionsArray = [];
+    }
+    print(addToOmittedQuestionsArray);
 
+    // print("Start: ");
+    // print("quizId: " + _getGenerateQuizSuccessful.data.quizId.toString());
+    // print("quizTitle: " + "Custom Quiz" + date[0].toString());
+    // print("quizDate: " + date[0].toString());
+    // print("quizScore: " + quizScore.toString());
+    // print("quizTotalQuestions: " + widget.totalQuestions.toString());
+    // print("quizStatus: " + saveAs);
+    // print("quizQuestions: " + questionsData["id"].toString());
+    // print("quizMode: " + widget.mode);
+    // print("quizTime: " + totalQuizTime.toString());
+    // print("isTimed: " + widget.timedMode.toString());
+    // print("omittedQuestions: " + addToOmittedQuestionsArray.toString());
+    // print("SelectedOptionsArray: " + [].toString());
+    // print("userId: " + _userId.toString());
+    // print(" :End");
 
-
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
+    await http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
       'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
     }, body: json.encode(
         {
           "data":
           {
             "quiz" : {
-              "quizId": _getGenerateQuizSuccessful.data.quizId,
+              "quizId": widget.whatsDone == "new" ? _getGenerateQuizSuccessful.data.quizId.toString() : _resumeQuizSuccessful.data.previousQuizzes[0].quizId,
               "quizTitle": "Custom Quiz" + date[0].toString(), // "Custom Quiz" + Date.now()
               "quizDate": date[0].toString(), // "Custom Quiz"
               "quizScore": quizScore.toString(), // total correct
-              "quizTotalQuestions": widget.totalQuestions,
-              "quizStatus": allQuestionsAreAnswered ? "completed" : "suspended", // "completed", "suspended"
-              "quizQuestions": widget.questions.toString(), // Question IDs
-              "quizMode":"tutor", // "tutor", "exam"
+              "quizTotalQuestions": widget.totalQuestions.toString(),
+              "quizStatus": saveAs, // == "completed" ? "completed" : "suspended", // "completed", "suspended"
+              "quizQuestions": questionsData["id"].toString(), // Question IDs
+              "quizMode": widget.mode, // "tutor", "exam"
               "quizTime": totalQuizTime.toString(), // total quiz time in seconds
               "isTimed": widget.timedMode, // bool true or false
-              "omittedQuestions": [], // Don't send anything here
+              "omittedQuestions": addToOmittedQuestionsArray, // Don't send anything here
               "SelectedOptionsArray": [] // Don't send anything here
             },
-            "userId": _userId
+            "userId": _userId.toString()
           }
         }
 
         )
-    ).then((response) {
+    ).then((response) async {
       print(jsonDecode(response.body).toString());
       if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
 
       }
       else { // Token Invalid
-
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
+        final result = Navigator.pushAndRemoveUntil<void>(
+          context,
+          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          ModalRoute.withName('/'),
+        );
       }
     }
-    );
+    ).whenComplete(() {
+      if(hasUserClicked == true) {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as $saveAs!")));
+        Navigator.of(context)
+            .popUntil(ModalRoute.withName("/home"));
+        final result = Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => QuizFinal()),
+        );
+      }
+    });
+
   }
 
   Future<void> GenerateQuizAPI() async {
+    print("Mode: " + widget.mode.toString());
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/generator/generateQuiz";
     _token = prefs.getString('token')!;
@@ -268,12 +398,18 @@ class _QuizModuleState extends State<QuizModule> {
           }
         })
     ).then((response) {
-      print(jsonDecode(response.body).toString());
-      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
-
+      if((response.statusCode == 200)) { //  & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+        print(jsonDecode(response.body).toString());
       }
       else { // Token Invalid
-
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
+        final result = Navigator.pushAndRemoveUntil<void>(
+          context,
+          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          ModalRoute.withName('/'),
+        );
       }
     }
     );
@@ -333,47 +469,110 @@ class _QuizModuleState extends State<QuizModule> {
       questionsData["correct_msg"] = [];
       questionsData["answeredCorrectly"] = [];
       questionsData["optionSelectedInt"] = [];
+      questionsData["notes"] = [];
+      questionsData["submitData"] = [];
       _questions = [];
     });
-    int c = 0;
-    if(_getGenerateQuizSuccessful != null) {
-      while ((c < _getGenerateQuizSuccessful.data.questions
-          .toList()
-          .length) & (_getGenerateQuizSuccessful.data.questions
-          .toList()
-          .length > 0)) {
-        // questionsData
-        setState(() {
-          questionsData["id"]!.add(
-              _getGenerateQuizSuccessful.data.questions[c].id);
-          questionsData["question"]!.add(
-              _getGenerateQuizSuccessful.data.questions[c].question);
-          questionsData["options"]!.add(
-              _getGenerateQuizSuccessful.data.questions[c].options);
-          questionsData["statistics"]!.add(
-              _getGenerateQuizSuccessful.data.questions[c].statistics);
-          questionsData["correct_msg"]!.add(
-              _getGenerateQuizSuccessful.data.questions[c]
-                  .correctMsg); //answeredCorrectly
-          questionsData["answeredCorrectly"]!.add("notAnswered");
-          questionsData["optionSelectedInt"]!.add(0);
-          _questions.add((c+1).toString());
-        });
-        c++;
-      }
-      setState(() {
-        hasDataLoaded = true;
-      });
-      if(hasDataLoaded == true) {
-        if(ranSaveQuizAtTheStart == false) {
-          SaveQuizAPI();
+    if(widget.whatsDone == "new")
+    {
+      int c = 0;
+      if (_getGenerateQuizSuccessful != null) {
+        while ((c < _getGenerateQuizSuccessful.data.questions.toList().length) &
+            (_getGenerateQuizSuccessful.data.questions.toList().length > 0)) {
+          // questionsData
           setState(() {
-            ranSaveQuizAtTheStart = true;
+            questionsData["id"]!
+                .add(_getGenerateQuizSuccessful.data.questions[c].id);
+            questionsData["question"]!
+                .add(_getGenerateQuizSuccessful.data.questions[c].question);
+            questionsData["options"]!
+                .add(_getGenerateQuizSuccessful.data.questions[c].options);
+            questionsData["statistics"]!
+                .add(_getGenerateQuizSuccessful.data.questions[c].statistics);
+            questionsData["correct_msg"]!.add(_getGenerateQuizSuccessful
+                .data.questions[c].correctMsg); //answeredCorrectly
+            questionsData["answeredCorrectly"]!.add("notAnswered");
+            questionsData["optionSelectedInt"]!.add(0);
+            _questions.add((c + 1).toString());
           });
+          c++;
+        }
+        setState(() {
+          hasDataLoaded = true;
+        });
+        if (hasDataLoaded == true) {
+          if (ranSaveQuizAtTheStart == false) {
+            SaveQuizAPI("suspended");
+            setState(() {
+              ranSaveQuizAtTheStart = true;
+            });
+          }
         }
       }
     }
     // print(questionsData);
+    else if(widget.whatsDone == "resumed")
+    {
+      int c = 0;
+      if (_resumeQuizSuccessful != null) {
+        while ((c < _resumeQuizSuccessful.data.questions.length) &
+        (_resumeQuizSuccessful.data.questions.length > 0)) {
+          // questionsData
+          setState(() {
+            questionsData["id"]!
+                .add(_resumeQuizSuccessful.data.questions[c].id);
+            questionsData["question"]!
+                .add(_resumeQuizSuccessful.data.questions[c].question);
+            questionsData["options"]!
+                .add(_resumeQuizSuccessful.data.questions[c].options);
+            questionsData["statistics"]!
+                .add(_resumeQuizSuccessful.data.questions[c].statistics);
+            questionsData["correct_msg"]!.add(_resumeQuizSuccessful
+                .data.questions[c].correctMsg); //answeredCorrectly
+            questionsData["answeredCorrectly"]!.add("notAnswered");
+            questionsData["optionSelectedInt"]!.add(0);
+            _questions.add((c + 1).toString());
+            if(_resumeQuizSuccessful.data.questions[c].notes != null) { // notes
+              questionsData["notes"]!.add(_resumeQuizSuccessful
+                  .data.questions[c].notes);
+            } else {
+              questionsData["notes"]!.add("");
+            }
+            if(_resumeQuizSuccessful.data.questions[c].submitData != null) { // submitData
+              String str = _resumeQuizSuccessful.data.questions[c].submitData;
+              str = str.replaceAll("\\", "");
+              var strMap = json.decode(str);
+              print(strMap);
+              if(strMap['correct'] == '1') {
+                questionsData["answeredCorrectly"]![c] = "correct";
+              }
+              else if (strMap['correct'] == '0') {
+                questionsData["answeredCorrectly"]![c] = "incorrect";
+              }
+              questionsData["optionSelectedInt"]![c] = int.parse(strMap['optionIndexSelected']);
+              questionsData["submitData"]!.add(_resumeQuizSuccessful
+                  .data.questions[c].submitData);
+            } else {
+              questionsData["submitData"]!.add("");
+            }
+          });
+          c++;
+        }
+        print(questionsData["answeredCorrectly"]);
+        setState(() {
+          hasDataLoaded = true;
+        });
+        if (hasDataLoaded == true) {
+          if (ranSaveQuizAtTheStart == false) {
+            SaveQuizAPI("suspended");
+            setState(() {
+              ranSaveQuizAtTheStart = true;
+            });
+          }
+        }
+      }
+    }
+    // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
   }
 
   // To change text size - text zoom
@@ -851,7 +1050,7 @@ class _QuizModuleState extends State<QuizModule> {
           context: context,
           builder: (context) => AlertDialog(
             content: Text(
-              'Do you want to quit the quiz',
+              'Mark Quiz as',
               style: TextStyle(
                 color: Color(0xffA1A1A1),
                 fontFamily: 'Brandon-bld',
@@ -860,25 +1059,29 @@ class _QuizModuleState extends State<QuizModule> {
             ),
             actions: <Widget>[
               TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text('No',
+                onPressed: () async {
+                  await SaveQuizAPI("suspended", true);
+                  // ScaffoldMessenger.of(context)
+                  //   ..removeCurrentSnackBar()
+                  //   ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as Suspended!")));
+                  // Navigator.of(context).pop();
+                  // Navigator.of(context).pop();
+                },
+                child: Text('Suspended',
                     style: TextStyle(
                       color: Color(0xff3F2668),
                       fontFamily: 'Brandon-bld',
                       fontSize:
-                          (MediaQuery.of(context).size.height) * (21 / 926),
+                      (MediaQuery.of(context).size.height) * (21 / 926),
                     )),
               ),
               TextButton(
-                onPressed: () {
-                  SaveQuizAPI();
-                  ScaffoldMessenger.of(context)
-                    ..removeCurrentSnackBar()
-                    ..showSnackBar(SnackBar(content: Text("The Quiz has been saved!")));
-                  Navigator.of(context).pop(true);
-                  Navigator.of(context).pop();
+                onPressed: () async {
+                  await SaveQuizAPI("completed", true);
+                  // Navigator.of(context).pop();
+                  // Navigator.of(context).pop(); // Uncomment when "completed" and omittedQuestionsArray work again.
                   },
-                child: Text('Yes',
+                child: Text('Completed',
                     style: TextStyle(
                       color: Color(0xff3F2668),
                       fontFamily: 'Brandon-bld',
@@ -896,6 +1099,7 @@ class _QuizModuleState extends State<QuizModule> {
   void dispose() {
     _textController.dispose();
     timer?.cancel();
+    WidgetsBinding.instance!.removeObserver(this);
     // saveQuiz?.cancel();
     super.dispose();
   }
@@ -904,10 +1108,10 @@ class _QuizModuleState extends State<QuizModule> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text("Click on Quit Quiz!")));
-        return false;
+        // ScaffoldMessenger.of(context)
+        //   ..removeCurrentSnackBar()
+        //   ..showSnackBar(SnackBar(content: Text("Click on Quit Quiz!")));
+        return true;
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
@@ -938,7 +1142,7 @@ class _QuizModuleState extends State<QuizModule> {
                 dropdownColor: Color(0xff3F2668),
                 onChanged: (newValue) {
                   setState(() {
-                    print(newValue);
+                    // print(newValue);
                     _currentQuestion = newValue as String;
                     questionNumber = int.parse(newValue) - 1;
                   });
@@ -970,7 +1174,7 @@ class _QuizModuleState extends State<QuizModule> {
           actions: [
             TextButton(
               onPressed: () async {
-                SaveQuizAPI();
+                SaveQuizAPI("suspended", false);
               },
               child: SvgPicture.asset(
                 "assets/Images/logout.svg",
@@ -1097,7 +1301,7 @@ class _QuizModuleState extends State<QuizModule> {
                             ),
                             if(questionsData["options"] != null)
                               for(int i = 0; i<questionsData["options"]![questionNumber].length; i++)
-                                Column(
+                                widget.mode == "tutor" ? Column( // tutor Mode!
                               children: [
                                 TextButton(
                                   onPressed: () {
@@ -1153,6 +1357,7 @@ class _QuizModuleState extends State<QuizModule> {
                                       decoration: BoxDecoration(
                                           color: ((questionsData["answeredCorrectly"]![questionNumber] == "correct") & (i == questionsData["optionSelectedInt"]![questionNumber])) ? Color(0xFF3F2668) : Color(0xffffffff),
                                           border: Border.all(
+                                            width: 2,
                                             color: ((questionsData["answeredCorrectly"]![questionNumber] == "incorrect") & (i == questionsData["optionSelectedInt"]![questionNumber])) ? Color(0xFFD90000) : Colors.white,
                                           ),
                                           borderRadius: BorderRadius.all(Radius.circular(0))
@@ -1256,7 +1461,167 @@ class _QuizModuleState extends State<QuizModule> {
                                   height: (MediaQuery.of(context).size.height) * (20 / 926),
                                 ),
                               ],
-                            ),
+                            ) :
+                                Column( // Exam Mode!
+                                  children: [
+                                    TextButton(
+                                      onPressed: () {
+                                        // print("i: " + i.toString());
+                                        // if(questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") {
+                                        if((questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") || (questionsData["answeredCorrectly"]![questionNumber] != "notAnswered")) {
+                                          int? indexOfOptionThatIsActuallyCorrect;
+                                          int? correct;
+                                          // whichOption = i; optionSelectedInt
+                                          setState(() {
+                                            questionsData["optionSelectedInt"]![questionNumber] = i;
+                                          });
+                                          int j = 0;
+                                          for(j = 0; j<10; j++) {
+                                            if(questionsData["options"]![questionNumber][i].toString() == questionsData["options"]![questionNumber][j].toString()) {
+                                              break;
+                                            }
+                                          }
+                                          if(questionsData["statistics"]![questionNumber][j] == 1) {
+                                            setState(() {
+                                              questionsData["answeredCorrectly"]![questionNumber] = "correct";
+                                            });
+                                            correct = 1;
+                                            // print("correct: " + correct.toString());
+                                            // print(questionsData["answeredCorrectly"]);
+                                          }
+                                          else if(questionsData["statistics"]![questionNumber][j] == 0) {
+                                            setState(() {
+                                              questionsData["answeredCorrectly"]![questionNumber] = "incorrect";
+                                            });
+                                            correct = 0;
+                                            // print(questionsData["answeredCorrectly"]);
+                                          }
+                                          for(int c = 0; c<questionsData["statistics"]![questionNumber].length; c++) {
+                                            if(questionsData["statistics"]![questionNumber][c] == 1) {
+                                              indexOfOptionThatIsActuallyCorrect = c;
+                                              // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+                                              break;
+                                            }
+                                          }
+                                          print(questionsData["answeredCorrectly"]);
+                                          submitAnswerAPI(indexOfOptionThatIsActuallyCorrect, correct, i);
+                                        }
+                                      },
+                                      style: TextButton.styleFrom(
+                                        padding: EdgeInsets.zero,),
+                                      child: Container(
+                                        // height: (MediaQuery.of(context).size.height) * (50 / 926),
+                                          width: (MediaQuery.of(context).size.width) * (385 / 428),
+                                          padding: EdgeInsets.only(
+                                            top: (MediaQuery.of(context).size.height) * (8 / 928),
+                                            left: (MediaQuery.of(context).size.width) * (13 / 428),
+                                            bottom: (MediaQuery.of(context).size.height) * (8 / 928),
+                                          ),
+                                          decoration: BoxDecoration(
+                                              color: ((questionsData["answeredCorrectly"]![questionNumber] != "notAnswered") & (i == questionsData["optionSelectedInt"]![questionNumber])) ? Color(0xffffffff) : Color(0xffffffff),
+                                              border: Border.all(
+                                                width: 2,
+                                                color: ((questionsData["answeredCorrectly"]![questionNumber] != "notAnswered") & (i == questionsData["optionSelectedInt"]![questionNumber])) ? Color(0xFF3F2668) : Colors.white, // Color(0xFF3F2668)
+                                              ),
+                                              borderRadius: BorderRadius.all(Radius.circular(0))
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                width: (MediaQuery.of(context).size.width) * (300 / 428),
+                                                child: Text(questionsData["options"]![questionNumber][i].toString().trim(),
+                                                    style: TextStyle(
+                                                      color: Color(0xFF6E6D6F),
+                                                      fontFamily: 'Brandon-med',
+                                                      fontSize: (MediaQuery.of(context).size.height) *
+                                                          (_fontSize / 926), //38,
+                                                    )),
+                                              ),
+                                              Row(
+                                                crossAxisAlignment: CrossAxisAlignment.center,
+                                                children: [
+                                                  ((questionsData["answeredCorrectly"]![questionNumber] == "notAnswered")) ?
+                                                  Container(
+                                                    height: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    width: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    child: Icon(Icons.radio_button_unchecked,
+                                                      color: Color(0xFF3F2668),),
+                                                  ) : Container(),
+                                                  ((questionsData["answeredCorrectly"]![questionNumber] == "incorrect") & (i == questionsData["optionSelectedInt"]![questionNumber])) ?
+                                                  Container(
+                                                    height: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    width: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    child: Icon(Icons.check_circle,
+                                                      color: Color(0xFF3F2668),),
+                                                  ) : Container(),
+                                                  ((questionsData["answeredCorrectly"]![questionNumber] == "incorrect") & (i != questionsData["optionSelectedInt"]![questionNumber])) ?
+                                                  Container(
+                                                    height: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    width: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    child: Icon(Icons.radio_button_unchecked,
+                                                      color: Color(0xFF3F2668),),
+                                                  ) : Container(),
+                                                  ((questionsData["answeredCorrectly"]![questionNumber] == "correct") & (i == questionsData["optionSelectedInt"]![questionNumber])) ?
+                                                  Container(
+                                                    height: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    width: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    child: Icon(Icons.check_circle,
+                                                      color: Color(0xFF3F2668),),
+                                                  ) : Container(),
+                                                  ((questionsData["answeredCorrectly"]![questionNumber] == "correct") & (i != questionsData["optionSelectedInt"]![questionNumber])) ?
+                                                  Container(
+                                                    height: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    width: (MediaQuery.of(context).size.height) * (30 / 926),
+                                                    child: Icon(Icons.radio_button_unchecked,
+                                                      color: Color(0xFF3F2668),),
+                                                  ) : Container(),
+                                                  SizedBox(
+                                                    width: (MediaQuery.of(context).size.width) * (5 / 428),
+                                                  ),
+                                                ],
+                                              )
+                                            ],
+                                          )),
+                                    ),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) * (5 / 926),
+                                    ),
+                                    // ((questionsData["answeredCorrectly"]![questionNumber] != "notAnswered") & (i == questionsData["optionSelectedInt"]![questionNumber])) ?
+                                    // GestureDetector(
+                                    //   onTap: () {
+                                    //     var correctAns;
+                                    //     for(int c = 0; c<questionsData["statistics"]![questionNumber]!.length; c++) {
+                                    //       if(questionsData["statistics"]![questionNumber]![c] == 1) {
+                                    //         setState(() {
+                                    //           correctAns = questionsData["options"]![questionNumber]![c];
+                                    //         });
+                                    //       }
+                                    //     }
+                                    //     final result = Navigator.push(
+                                    //       context,
+                                    //       MaterialPageRoute(builder: (context) => QuestionExplanation(question: questionsData["question"]![questionNumber].toString(), correctAnswer: correctAns.toString(), questionId: questionsData["id"]![questionNumber], explanation: questionsData["correct_msg"]![questionNumber].toString(),)),
+                                    //     );
+                                    //   },
+                                    //   child: Container(
+                                    //     alignment: Alignment.topRight,
+                                    //     child: Text(
+                                    //       "See Explanation",
+                                    //       style: TextStyle(
+                                    //         color: Color(0xFF7F1AF1),
+                                    //         fontFamily: 'Brandon-med',
+                                    //         fontSize: (MediaQuery.of(context).size.height) *
+                                    //             (13 / 926), //38,
+                                    //       ),
+                                    //     ),
+                                    //   ),
+                                    // ) : Container(),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) * (20 / 926),
+                                    ),
+                                  ],
+                                ),// here
                             SizedBox(
                               height: (MediaQuery.of(context).size.height) * (5 / 926),
                             ),

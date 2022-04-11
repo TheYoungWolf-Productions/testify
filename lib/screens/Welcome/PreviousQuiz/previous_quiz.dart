@@ -132,7 +132,7 @@ class _PreviousQuizState extends State<PreviousQuiz> {
     setState(() {
       hasPreviousQuizzesDataLoaded = true;
     });
-    print(previousQuizzesData);
+    // print(previousQuizzesData);
   }
 
   applyingPreviousQuizzesFilters() {
@@ -211,7 +211,7 @@ class _PreviousQuizState extends State<PreviousQuiz> {
     else {
       // categorizePreviousQuizzesData();
     }
-    print(previousQuizzesDataFiltered);
+    // print(previousQuizzesDataFiltered);
   }
 
   Future<void> getUserDataSST() async {
@@ -515,7 +515,7 @@ class _PreviousQuizState extends State<PreviousQuiz> {
 
               ),
               if(hasPreviousQuizzesDataLoaded == false)
-                CircularProgressIndicator(),
+                CircularProgressIndicator(color: Color(0xff3F2668),),
               if(hasPreviousQuizzesDataLoaded == true)
                 for(int i = 0; i<(subFilterIndex != 0 ? previousQuizzesDataFiltered["quizId"]!.length : previousQuizzesData["quizId"]!.length); i++)
                   subFilterIndex != 0 ? Column(

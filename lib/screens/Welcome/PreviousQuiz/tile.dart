@@ -70,7 +70,7 @@ class Tile extends StatelessWidget {
                       width: (MediaQuery.of(context).size.width) * (12 / 428),
                     ),
                     Text(
-                      name,
+                      (name.length >= 22) ? name.substring(0, 22) : name,
                       style: TextStyle(
                         color: Colors.black,
                         fontFamily: 'Brandon-med',
@@ -87,7 +87,7 @@ class Tile extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      score + ' / 100',
+                      score + ' / ' + totalQuestions,
                       style: TextStyle(
                         color: Color(0xff6C63FF),
                         fontFamily: 'Brandon-med',

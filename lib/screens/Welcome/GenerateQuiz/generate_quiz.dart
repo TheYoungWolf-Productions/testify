@@ -1567,7 +1567,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                     if(_questionsCount > 0) {
                                       final result = Navigator.push(
                                         context,
-                                        MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions, timedMode: _timedMode,)),
+                                        MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions, timedMode: _timedMode, mode: _tutorMode ? "tutor" : "exam", whatsDone: "new",)),
                                       );
                                     }
                                   },
