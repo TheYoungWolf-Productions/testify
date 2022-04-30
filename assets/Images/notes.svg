@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="36" height="67" viewBox="0 0 36 67">
+  <g id="Group_233" data-name="Group 233" transform="translate(-312 -388.865)">
+    <path id="Icon_awesome-sticky-note" data-name="Icon awesome-sticky-note" d="M22.634,23.143H32.5V3.991A1.737,1.737,0,0,0,30.759,2.25H1.741A1.737,1.737,0,0,0,0,3.991V33.009A1.737,1.737,0,0,0,1.741,34.75H20.893V24.884A1.746,1.746,0,0,1,22.634,23.143Zm9.358,3.99-7.109,7.109a1.74,1.74,0,0,1-1.233.508h-.435V25.464H32.5v.443A1.736,1.736,0,0,1,31.992,27.133Z" transform="translate(315.25 386.615)" fill="#e4e4e4"/>
+    <text id="Notes" transform="translate(312 449.865)" fill="#e4e4e4" font-size="15" font-family="BrandonGrotesque-Medium, Brandon Grotesque" font-weight="500"><tspan x="0" y="0">Notes</tspan></text>
+  </g>
+</svg>
