@@ -15,11 +15,15 @@ git clone https://github.com/TheYoungWolf-Productions/testify.git
 cd testify
 flutter pub get
 ```
-`Note:` You need your [GitHub](https://docs.github.com/en/get-started/quickstart/set-up-git) and [Flutter](https://docs.flutter.dev/get-started/install/windows) already setup.
+`Note:` You need your [GitHub](https://docs.github.com/en/get-started/quickstart/set-up-git) and [Flutter](https://docs.flutter.dev/get-started/install/windows) already setup. I recommend using *VSCode* as the editor with __Flutter__ extension.
+
+### :loudspeaker: Guidelines
+- :bulb: The team will ***STRICTLY*** follow the [Git Workflow](https://nvie.com/posts/a-successful-git-branching-model/)
+- :bulb: Every pull request needs to have an **assigned** reviewer.
 
 ## Contributors
 
-- theYoungWolf
+- :wolf: theYoungWolf :wolf:
 - Muhammad Abdullah
 - Minahial Khalid
 - **Sponsors:** Pookidevs :v:
