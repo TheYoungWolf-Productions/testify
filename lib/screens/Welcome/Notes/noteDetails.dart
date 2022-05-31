@@ -75,13 +75,36 @@ class _NoteDetailsState extends State<NoteDetails> {
           ..showSnackBar(SnackBar(content: Text("Note not Edited!")));
       }
     }
-    );
+    ).catchError((error){
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   Future<void> deleteNotesAPI() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token')!;
-    final String editNotesAPI = "https://demo.pookidevs.com/quiz/notes/editNotes";
+    final String editNotesAPI = "https://demo.pookidevs.com/quiz/notes/deleteNotes";
+    print(widget.noteId.runtimeType);
     http.post(Uri.parse(editNotesAPI), headers: <String, String>{
       'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
     }, body: json.encode(
@@ -96,7 +119,12 @@ class _NoteDetailsState extends State<NoteDetails> {
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Note Deleted!")));
-        Navigator.of(context).pop();
+        Navigator.of(context)
+            .popUntil(ModalRoute.withName("/home"));
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Notes()),
+        );
       }
       else if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) == "{status: false")) { // Token Invalid
         ScaffoldMessenger.of(context)
@@ -113,7 +141,29 @@ class _NoteDetailsState extends State<NoteDetails> {
           ..showSnackBar(SnackBar(content: Text("Note not Deleted!")));
       }
     }
-    );
+    ).catchError((error){
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   Widget editNotes(BuildContext context) {
@@ -287,9 +337,12 @@ class _NoteDetailsState extends State<NoteDetails> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        ScaffoldMessenger.of(context)
-          ..removeCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text("Press back button!")));
+        Navigator.of(context)
+            .popUntil(ModalRoute.withName("/home"));
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => Notes()),
+        );
         return false;
       },
       child: Scaffold(

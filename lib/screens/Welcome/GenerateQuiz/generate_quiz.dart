@@ -21,6 +21,7 @@ class GenerateQuiz extends StatefulWidget {
 
 class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late TextEditingController _textCountController;
 
   // Once the data is loaded only then it shows the containers.
   bool _hasDataLoaded = false;
@@ -29,6 +30,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
   // First gets its value when getUserData is run and then gets updated as getQuestionCounts is run.
   int _totalQuestions = 0;
   List<int> _questions = [];
+  bool _gettingQuestionsCount = false;
 
   //Tab 1 Data:
   //Not allowing Subjects or topics to be selected if Systems is empty
@@ -95,6 +97,7 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _textCountController = TextEditingController();
     _tabController = TabController(vsync: this, length: 5);
     getUserDataSST();
   }
@@ -150,7 +153,32 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
         }
       }
       }
-      );
+      ).catchError((error){
+      setState(() {
+        _hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   Future<void> getQuestionsCount() async {
@@ -160,6 +188,9 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
     // print(_userId);
     // print(_questionTypeInt);
     // print(_difficultyLevel);
+    setState(() {
+      _gettingQuestionsCount = true;
+    });
 
     final String apiUrl = "https://demo.pookidevs.com/quiz/generator/getQuestionCounts";
     http.post(Uri.parse(apiUrl), headers: <String, String>{
@@ -177,6 +208,9 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
           }
         })
     ).then((response) {
+      setState(() {
+        _gettingQuestionsCount = false;
+      });
       if(response.statusCode == 200) {
         // print("getQuestionsCount() : " + response.body.toString());
         if(json.decode(response.body).toString().substring(0,20) == "{data: {status: true") {
@@ -215,6 +249,31 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
         else {
 
         }
+      }
+    }).catchError((error){
+      setState(() {
+        _hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
       }
     });
 
@@ -332,227 +391,674 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
   @override
   void dispose() {
     _tabController.dispose();
+    _textCountController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Color(0xffF8F9FB),
-      drawer: SideMenuBar(),
-      appBar: AppBar(
-        toolbarHeight: (MediaQuery.of(context).size.height) *(73.52/926),
-        backgroundColor: Color(0xff3F2668),
-        elevation: 2,
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: <Color>[
-                    Color(0xff7F1AF1),
-                    Color(0xff482384)
-                  ])
-          ),
-        ),
-        title: const Text("Generate Quiz",
-          style: TextStyle(
-            color: Color(0xffFFFEFE),
-            fontFamily: 'Brandon-bld',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const Login(fromWhere:"Home")),
-              );
-            },
-            child: SvgPicture.asset(
-              "assets/Images/logout.svg",
-              height: (MediaQuery.of(context).size.height) *(32/926),
+    var h=MediaQuery.of(context).size.height/926;
+    var w=MediaQuery.of(context).size.width/428;
+    return GestureDetector(
+      onTap: () {
+        FocusScopeNode currentFocus = FocusScope.of(context);
+
+        if (!currentFocus.hasPrimaryFocus) {
+          currentFocus.unfocus();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Color(0xffF8F9FB),
+        drawer: SideMenuBar(),
+        appBar: AppBar(
+          toolbarHeight: (MediaQuery.of(context).size.height) *(73.52/926),
+          backgroundColor: Color(0xff3F2668),
+          elevation: 2,
+          centerTitle: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: <Color>[
+                      Color(0xff7F1AF1),
+                      Color(0xff482384)
+                    ])
             ),
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Container(
-          padding: EdgeInsets.only(top:(MediaQuery.of(context).size.height) *(15/926),
-              bottom: (MediaQuery.of(context).size.height) *(8/926),
-          left: (MediaQuery.of(context).size.width) *(18/428),
-          right: (MediaQuery.of(context).size.width) *(18/428)),
-          child: Column(
-            children: <Widget>[
-              Row(
-                children: [
-                  Container(
-                    width: (MediaQuery.of(context).size.width) *(221/428),
-                    //height: (MediaQuery.of(context).size.height) *(91/926),
-                    child: Column(
-                      children: [
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Text("Create Quiz",
-                            style: TextStyle(
-                              color: Color(0xff232323),
-                              fontFamily: 'Brandon-bld',
-                              fontSize: (MediaQuery.of(context).size.height) *(25/926),//38,
-                            ),),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(2/926),),
-                        Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.",
-                          style: TextStyle(
-                            color: Color(0xFF483A3A),
-                            fontFamily: 'Brandon-med',
-                            fontSize: (MediaQuery.of(context).size.height) *(13/926),//38,
-                          ),),
-                      ],
-                    ),
-                  ),
-                  SizedBox(width: (MediaQuery.of(context).size.width) *(39/428),),
-                  Container(
-                    //color: Colors.transparent,
-                    child: SvgPicture.asset(
-                          "assets/Images/create_quiz.svg",
-                        height: (MediaQuery.of(context).size.height) *(100/926),
-                        //width: (MediaQuery.of(context).size.width) *(132/428),
-                      ),
-                  ),
-                ],
+          title: const Text("Generate Quiz",
+            style: TextStyle(
+              color: Color(0xffFFFEFE),
+              fontFamily: 'Brandon-bld',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const Login(fromWhere:"Home")),
+                );
+              },
+              child: SvgPicture.asset(
+                "assets/Images/logout.svg",
+                height: (MediaQuery.of(context).size.height) *(32/926),
               ),
-              SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
-              SizedBox(height: (MediaQuery.of(context).size.height) *(13.28/926),),
-              Container(
-                height: (MediaQuery.of(context).size.height) *(596/926),
-                width: double.infinity,
-                child: TabBarView(
-                  // physics: NeverScrollableScrollPhysics(),
-                  controller: _tabController,
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          child: Container(
+            padding: EdgeInsets.only(top:(MediaQuery.of(context).size.height) *(15/926),
+                bottom: (MediaQuery.of(context).size.height) *(8/926),
+            left: (MediaQuery.of(context).size.width) *(18/428),
+            right: (MediaQuery.of(context).size.width) *(18/428)),
+            child: Column(
+              children: <Widget>[
+                Row(
                   children: [
-                    //Tab1: Subjects
-                    Column(
-                      children: [
-                        Container(
-                          height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(386/428),
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3F2668),
-                            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                spreadRadius: 2,
-                                blurRadius: 2,
-                                offset: Offset(0, 0),
+                    Container(
+                      width: (MediaQuery.of(context).size.width) *(221/428),
+                      //height: (MediaQuery.of(context).size.height) *(91/926),
+                      child: Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: Text("Create Quiz",
+                              style: TextStyle(
+                                color: Color(0xff232323),
+                                fontFamily: 'Brandon-bld',
+                                fontSize: (MediaQuery.of(context).size.height) *(25/926),//38,
+                              ),),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(2/926),),
+                          Text("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.",
+                            style: TextStyle(
+                              color: Color(0xFF483A3A),
+                              fontFamily: 'Brandon-med',
+                              fontSize: (MediaQuery.of(context).size.height) *(13/926),//38,
+                            ),),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: (MediaQuery.of(context).size.width) *(39/428),),
+                    Container(
+                      //color: Colors.transparent,
+                      child: SvgPicture.asset(
+                            "assets/Images/create_quiz.svg",
+                          height: (MediaQuery.of(context).size.height) *(100/926),
+                          //width: (MediaQuery.of(context).size.width) *(132/428),
+                        ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
+                SizedBox(height: (MediaQuery.of(context).size.height) *(13.28/926),),
+                Container(
+                  height: (MediaQuery.of(context).size.height) *(596/926),
+                  width: double.infinity,
+                  child: TabBarView(
+                    // physics: NeverScrollableScrollPhysics(),
+                    controller: _tabController,
+                    children: [
+                      //Tab1: Subjects
+                      Column(
+                        children: [
+                          Container(
+                            height: (MediaQuery.of(context).size.height) *(40.32/926),
+                            width: (MediaQuery.of(context).size.width) *(386/428),
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3F2668),
+                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  spreadRadius: 2,
+                                  blurRadius: 2,
+                                  offset: Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text("Select Subjects",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Brandon-bld',
+                                  fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
+                                ),),
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
+                          Container(
+                            padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                            width: (MediaQuery.of(context).size.width) *(366/428),
+                              child: _hasDataLoaded == false ?
+                              Container(height: (MediaQuery.of(context).size.height) *(460/926),child: Center(child: CircularProgressIndicator(color: Color(0xFF3F2668),)))
+                                  :
+                              Container(
+                                height: (MediaQuery.of(context).size.height) *(460/926),
+                                child: subjectsEverything["title"]!.length <= 0 ? Container(
+                                  child: Align(
+                                    alignment: Alignment.topCenter,
+                                    child: Text("No Subjects Available!",
+                                      style: TextStyle(
+                                        color: Color(0xffAEAEAE),
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize: (MediaQuery.of(context).size.height) *(15/926),//38,
+                                      ),),
+                                  ),
+                                ) :
+                                    Container(
+                                        height: (MediaQuery.of(context).size.height) *(460/926),
+                                        child: GridView(
+                                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                              crossAxisSpacing:
+                                              w * 30,
+                                              mainAxisExtent:
+                                              h * 50,
+                                              mainAxisSpacing: h*50
+                                          ),
+                                          children: <Widget>[
+                                            for(int i = 0; i<subjectsEverything["title"]!.length; i++)
+                                              Container(
+                                                color: subjectsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
+                                                child: TextButton(
+                                                  style: TextButton.styleFrom(
+                                                    padding: EdgeInsets.zero,),
+                                                  child: Text(subjectsEverything["title"]![i],
+                                                    style: TextStyle(
+                                                      color: subjectsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
+                                                      fontFamily: 'Brandon-med',
+                                                      fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                                    ),),
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      if(subjectsEverything["isSelected"]![i] == false) {
+                                                        subjectsEverything["isSelected"]![i] = true;
+
+                                                        //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                        if(subjectsEverything["finalTitles"] == null || subjectsEverything["finalTitles"] == []) {
+                                                          print('addasdas');
+                                                          subjectsEverything["finalTitles"] = [""];
+                                                          subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                          subjectsEverything["finalTitles"]!.removeAt(0);
+                                                        }
+                                                        else {
+                                                          subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                        }
+                                                        // print(subjectsEverything["finalTitles"]);
+                                                      }
+                                                      else if(subjectsEverything["isSelected"]![i] == true) {
+                                                        subjectsEverything["isSelected"]![i] = false;
+                                                        subjectsEverything["finalTitles"]!.remove(subjectsEverything["title"]![i].toString());
+                                                        // print(subjectsEverything["finalTitles"]);
+                                                      }
+                                                    });
+
+                                                    int count = 0;
+                                                    for(int j = 0; j<subjectsEverything["isSelected"]!.length; j++) {
+                                                      if(subjectsEverything["isSelected"]![j] == true) {
+                                                        setState(() {
+                                                          count++;
+                                                        });
+                                                      }
+                                                      else {
+                                                        setState(() {
+                                                          _systemsDisabled = true;
+                                                        });
+                                                      }
+                                                    }
+
+                                                    print(count);
+                                                    if(count > 0) {
+                                                      setState(() {
+                                                        _systemsDisabled = false;
+                                                      });
+                                                    }
+
+                                                    //Unchecking the previously checked boxes.
+                                                    if(subjectsEverything["isSelected"]![i] == false) {
+                                                      if(systemsEverything["isSelected"]!.length > 0) {
+                                                        for(int i = 0; i<systemsEverything["isSelected"]!.length; i++) {
+                                                          setState(() {
+                                                            systemsEverything["isSelected"]![i] = false;
+                                                            systemsEverything["finalTitles"] = [];
+                                                          });
+                                                        }
+                                                      } // topicsEverything
+                                                      if(topicsEverything["isSelected"]!.length > 0) {
+                                                        for(int i = 0; i<topicsEverything["isSelected"]!.length; i++) {
+                                                          setState(() {
+                                                            topicsEverything["isSelected"]![i] = false;
+                                                            topicsEverything["finalTitles"] = [];
+                                                          });
+                                                        }
+                                                      }
+                                                    }
+                                                    // print(subjectsEverything["finalTitles"]);
+                                                    // print(systemsEverything["finalTitles"]);
+                                                    // print(topicsEverything["finalTitles"]);
+                                                    getQuestionsCount();
+                                                  },
+                                                ),
+                                              ),
+                                          ],
+                                        )
+                                    ),
+                              ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),
+                                    borderRadius:
+                                    BorderRadius.circular(h * 7),
+                                  ),
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                        padding:
+                                        EdgeInsets.zero),
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _nextTab();
+                                    },
+                                    child: Center(
+                                      child: Text(
+                                        "Next",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                          fontSize: h * 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: Text("Select Subjects",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Brandon-bld',
-                                fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
-                              ),),
+                        ],
+                      ),
+                      //Tab 1 is complete.
+
+                      //Tab2: Systems
+                      Column(
+                        children: [
+                          Container(
+                            height: (MediaQuery.of(context).size.height) *(40.32/926),
+                            width: (MediaQuery.of(context).size.width) *(386/428),
+                            //color: Colors.red,
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,//Color(0xff00000029),
+                                  spreadRadius: 2,
+                                  blurRadius: 2,
+                                  offset: Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text("Select Systems",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Brandon-bld',
+                                  fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
+                                ),),
+                            ),
                           ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
-                        Container(
-                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
-                          width: (MediaQuery.of(context).size.width) *(366/428),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
+                          Container(
+                            padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                            width: (MediaQuery.of(context).size.width) *(366/428),
                             child: _hasDataLoaded == false ?
                             Container(height: (MediaQuery.of(context).size.height) *(460/926),child: Center(child: CircularProgressIndicator(color: Color(0xFF3F2668),)))
                                 :
                             Container(
                               height: (MediaQuery.of(context).size.height) *(460/926),
-                              child: ListView(
-                                scrollDirection: Axis.vertical,
-                                children: [
+                              child: systemsEverything["title"]!.length <= 0 ? Container(
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Text("No Systems Available!",
+                                    style: TextStyle(
+                                      color: Color(0xffAEAEAE),
+                                      fontFamily: 'Brandon-bld',
+                                      fontSize: (MediaQuery.of(context).size.height) *(15/926),//38,
+                                    ),),
+                                ),
+                              ) :
                                   Container(
                                       height: (MediaQuery.of(context).size.height) *(120.9/926),
                                       child: GridView(
                                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                           crossAxisCount: 2,
-                                          crossAxisSpacing: (MediaQuery.of(context).size.width) *(30/428),
-                                          mainAxisExtent: (MediaQuery.of(context).size.height) *(40.224/926),),
+                                            crossAxisSpacing:
+                                            w * 30,
+                                            mainAxisExtent:
+                                            h * 50,
+                                            mainAxisSpacing: h*50
+                                        ),
                                         children: <Widget>[
-                                          for(int i = 0; i<subjectsEverything["title"]!.length; i++)
+                                          for(int i = 0; i<systemsEverything["title"]!.length; i++)
                                             Container(
-                                              color: subjectsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
+                                              color: systemsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
                                               child: TextButton(
                                                 style: TextButton.styleFrom(
                                                   padding: EdgeInsets.zero,),
-                                                child: Text(subjectsEverything["title"]![i],
+                                                child: Text(systemsEverything["title"]![i],
                                                   style: TextStyle(
-                                                    color: subjectsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
+                                                    color: systemsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
                                                     fontFamily: 'Brandon-med',
                                                     fontSize: (MediaQuery.of(context).size.height)*(15/926),
                                                   ),),
                                                 onPressed: () {
-                                                  setState(() {
-                                                    if(subjectsEverything["isSelected"]![i] == false) {
-                                                      subjectsEverything["isSelected"]![i] = true;
+                                                  if(_systemsDisabled == false) {
+                                                    setState(() {
+                                                      if(systemsEverything["isSelected"]![i] == false) {
+                                                        systemsEverything["isSelected"]![i] = true;
 
-                                                      //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
-                                                      if(subjectsEverything["finalTitles"] == null || subjectsEverything["finalTitles"] == []) {
-                                                        print('addasdas');
-                                                        subjectsEverything["finalTitles"] = [""];
-                                                        subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
-                                                        subjectsEverything["finalTitles"]!.removeAt(0);
+                                                        //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                        if(systemsEverything["finalTitles"] == null || systemsEverything["finalTitles"] == []) {
+                                                          print('addasdas');
+                                                          systemsEverything["finalTitles"] = [""];
+                                                          systemsEverything["finalTitles"]!.add(systemsEverything["title"]![i].toString());
+                                                          systemsEverything["finalTitles"]!.removeAt(0);
+                                                        }
+                                                        else {
+                                                          systemsEverything["finalTitles"]!.add(systemsEverything["title"]![i].toString());
+                                                        }
+                                                      }
+                                                      else if(systemsEverything["isSelected"]![i] == true) {
+                                                        systemsEverything["isSelected"]![i] = false;
+                                                        systemsEverything["finalTitles"]!.remove(systemsEverything["title"]![i].toString());
+                                                      }
+                                                    });
+
+                                                    int countTopic = 0;
+                                                    for(int j = 0; j<systemsEverything["isSelected"]!.length; j++) {
+                                                      if(systemsEverything["isSelected"]![j] == true) {
+                                                        setState(() {
+                                                          countTopic++;
+                                                        });
                                                       }
                                                       else {
-                                                        subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                        setState(() {
+                                                          _topicsDisabled = true;
+                                                        });
                                                       }
-                                                      // print(subjectsEverything["finalTitles"]);
                                                     }
-                                                    else if(subjectsEverything["isSelected"]![i] == true) {
-                                                      subjectsEverything["isSelected"]![i] = false;
-                                                      subjectsEverything["finalTitles"]!.remove(subjectsEverything["title"]![i].toString());
-                                                      // print(subjectsEverything["finalTitles"]);
-                                                    }
-                                                  });
 
-                                                  int count = 0;
-                                                  for(int j = 0; j<subjectsEverything["isSelected"]!.length; j++) {
-                                                    if(subjectsEverything["isSelected"]![j] == true) {
+                                                    if(countTopic > 0) {
                                                       setState(() {
-                                                        count++;
+                                                        _topicsDisabled = false;
                                                       });
                                                     }
-                                                    else {
-                                                      setState(() {
-                                                        _systemsDisabled = true;
-                                                      });
+
+                                                    //Unchecking the previously checked boxes.
+                                                    if(systemsEverything["isSelected"]![i] == false) {
+                                                      // topicsEverything
+                                                      if(topicsEverything["isSelected"]!.length > 0) {
+                                                        for(int i = 0; i<topicsEverything["isSelected"]!.length; i++) {
+                                                          setState(() {
+                                                            topicsEverything["isSelected"]![i] = false;
+                                                            topicsEverything["finalTitles"] = [];
+                                                          });
+                                                        }
+                                                      }
                                                     }
+                                                    // print(subjectsEverything["finalTitles"]);
+                                                    // print(systemsEverything["finalTitles"]);
+                                                    // print(topicsEverything["finalTitles"]);
+                                                    getQuestionsCount();
                                                   }
+                                                  else {
+                                                    showDialog(
+                                                      context: context,
+                                                      builder: (context) => AlertDialog(
+                                                        content: Text(
+                                                          'Select Subjects First!',
+                                                          style: TextStyle(
+                                                            color: Color(0xffA1A1A1),
+                                                            fontFamily: 'Brandon-bld',
+                                                            fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
+                                                          ),
+                                                        ),
+                                                        actions: <Widget>[
+                                                          Divider(),
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                            },
+                                                            child: Text('Okay',
+                                                                style: TextStyle(
+                                                                  color: Color(0xff3F2668),
+                                                                  fontFamily: 'Brandon-bld',
+                                                                  fontSize:
+                                                                  (MediaQuery.of(context).size.height) * (21 / 926),
+                                                                )),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
+                                                  }
+                                                },
+                                              ),
+                                            ),
+                                        ],
+                                      )
+                                  ),
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _backTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Back",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),
+                                    borderRadius:
+                                    BorderRadius.circular(h * 7),
+                                  ),
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                        padding:
+                                        EdgeInsets.zero),
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _nextTab();
+                                    },
+                                    child: Center(
+                                      child: Text(
+                                        "Next",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                          fontSize: h * 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
 
-                                                  print(count);
-                                                  if(count > 0) {
+                      //Tab3: Topics
+                      Column(
+                        children: [
+                          Container(
+                            height: (MediaQuery.of(context).size.height) *(40.32/926),
+                            width: (MediaQuery.of(context).size.width) *(366/428),
+                            //color: Colors.red,
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,//Color(0xff00000029),
+                                  spreadRadius: 2,
+                                  blurRadius: 2,
+                                  offset: Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text("Select Topics",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Brandon-bld',
+                                  fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
+                                ),),
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
+                          Container(
+                            padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                            width: (MediaQuery.of(context).size.width) *(366/428),
+                            child: _hasDataLoaded == false ?
+                            Container(height: (MediaQuery.of(context).size.height) *(460/926),child: Center(child: CircularProgressIndicator(color: Color(0xFF3F2668),)))
+                                :
+                            Container(
+                              height: (MediaQuery.of(context).size.height) *(460/926),
+                              child: topicsEverything["title"]!.length <= 0 ? Container(
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: Text("No Topics Available!",
+                                    style: TextStyle(
+                                      color: Color(0xffAEAEAE),
+                                      fontFamily: 'Brandon-bld',
+                                      fontSize: (MediaQuery.of(context).size.height) *(15/926),//38,
+                                    ),),
+                                ),
+                              ) :
+                                  Container(
+                                      height: (MediaQuery.of(context).size.height) *(120.9/926),
+                                      child: GridView(
+                                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                            crossAxisSpacing:
+                                            w * 30,
+                                            mainAxisExtent:
+                                            h * 50,
+                                            mainAxisSpacing: h*50
+                                        ),
+                                        children: <Widget>[
+                                          for(int i = 0; i<topicsEverything["title"]!.length; i++)
+                                            Container(
+                                              color: topicsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
+                                              child: TextButton(
+                                                style: TextButton.styleFrom(
+                                                    padding: EdgeInsets.zero,),
+                                                child: Text(topicsEverything["title"]![i],
+                                                  style: TextStyle(
+                                                    color: topicsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
+                                                    fontFamily: 'Brandon-med',
+                                                    fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                                  ),),
+                                                onPressed: () {
+                                                  if((_systemsDisabled == false) & (_topicsDisabled == false)) {
                                                     setState(() {
-                                                      _systemsDisabled = false;
+                                                      if(topicsEverything["isSelected"]![i] == false) {
+                                                        topicsEverything["isSelected"]![i] = true;
+
+                                                        //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
+                                                        if(topicsEverything["finalTitles"] == null || topicsEverything["finalTitles"] == []) {
+                                                          print('addasdas');
+                                                          topicsEverything["finalTitles"] = [""];
+                                                          topicsEverything["finalTitles"]!.add(topicsEverything["title"]![i].toString());
+                                                          topicsEverything["finalTitles"]!.removeAt(0);
+                                                        }
+                                                        else {
+                                                          topicsEverything["finalTitles"]!.add(topicsEverything["title"]![i].toString());
+                                                        }
+                                                      }
+                                                      else if(topicsEverything["isSelected"]![i] == true) {
+                                                        topicsEverything["isSelected"]![i] = false;
+                                                        topicsEverything["finalTitles"]!.remove(topicsEverything["title"]![i].toString());
+                                                      }
                                                     });
                                                   }
-
-                                                  //Unchecking the previously checked boxes.
-                                                  if(subjectsEverything["isSelected"]![i] == false) {
-                                                    if(systemsEverything["isSelected"]!.length > 0) {
-                                                      for(int i = 0; i<systemsEverything["isSelected"]!.length; i++) {
-                                                        setState(() {
-                                                          systemsEverything["isSelected"]![i] = false;
-                                                          systemsEverything["finalTitles"] = [];
-                                                        });
-                                                      }
-                                                    } // topicsEverything
-                                                    if(topicsEverything["isSelected"]!.length > 0) {
-                                                      for(int i = 0; i<topicsEverything["isSelected"]!.length; i++) {
-                                                        setState(() {
-                                                          topicsEverything["isSelected"]![i] = false;
-                                                          topicsEverything["finalTitles"] = [];
-                                                        });
-                                                      }
-                                                    }
+                                                  else {
+                                                    showDialog(
+                                                      context: context,
+                                                      builder: (context) => AlertDialog(
+                                                        content: Text(
+                                                          'Select Systems First!',
+                                                          style: TextStyle(
+                                                            color: Color(0xffA1A1A1),
+                                                            fontFamily: 'Brandon-bld',
+                                                            fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
+                                                          ),
+                                                        ),
+                                                        actions: <Widget>[
+                                                          Divider(),
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(context).pop();
+                                                            },
+                                                            child: Text('Okay',
+                                                                style: TextStyle(
+                                                                  color: Color(0xff3F2668),
+                                                                  fontFamily: 'Brandon-bld',
+                                                                  fontSize:
+                                                                  (MediaQuery.of(context).size.height) * (21 / 926),
+                                                                )),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    );
                                                   }
                                                   // print(subjectsEverything["finalTitles"]);
                                                   // print(systemsEverything["finalTitles"]);
@@ -564,1032 +1070,658 @@ class _GenerateQuizState extends State<GenerateQuiz> with SingleTickerProviderSt
                                         ],
                                       )
                                   ),
-                                ],
-                              ),
-                            ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926)),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _nextTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Next",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    //Tab 1 is complete.
-
-                    //Tab2: Systems
-                    Column(
-                      children: [
-                        Container(
-                          height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(386/428),
-                          //color: Colors.red,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,//Color(0xff00000029),
-                                spreadRadius: 2,
-                                blurRadius: 2,
-                                offset: Offset(0, 0),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text("Select Systems",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Brandon-bld',
-                                fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
-                              ),),
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
-                        Container(
-                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
-                          width: (MediaQuery.of(context).size.width) *(366/428),
-                          child: Container(
-                            height: (MediaQuery.of(context).size.height) *(460/926),
-                            child: _hasDataLoaded == false ? Text("") : ListView(
-                              scrollDirection: Axis.vertical,
-                              children: [
-                                Container(
-                                    height: (MediaQuery.of(context).size.height) *(120.9/926),
-                                    child: GridView(
-                                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        crossAxisSpacing: (MediaQuery.of(context).size.width) *(30/428),
-                                        mainAxisExtent: (MediaQuery.of(context).size.height) *(40.224/926),),
-                                      children: <Widget>[
-                                        for(int i = 0; i<systemsEverything["title"]!.length; i++)
-                                          Container(
-                                            color: systemsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
-                                            child: TextButton(
-                                              style: TextButton.styleFrom(
-                                                padding: EdgeInsets.zero,),
-                                              child: Text(systemsEverything["title"]![i],
-                                                style: TextStyle(
-                                                  color: systemsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
-                                                  fontFamily: 'Brandon-med',
-                                                  fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                                ),),
-                                              onPressed: () {
-                                                if(_systemsDisabled == false) {
-                                                  setState(() {
-                                                    if(systemsEverything["isSelected"]![i] == false) {
-                                                      systemsEverything["isSelected"]![i] = true;
-
-                                                      //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
-                                                      if(systemsEverything["finalTitles"] == null || systemsEverything["finalTitles"] == []) {
-                                                        print('addasdas');
-                                                        systemsEverything["finalTitles"] = [""];
-                                                        systemsEverything["finalTitles"]!.add(systemsEverything["title"]![i].toString());
-                                                        systemsEverything["finalTitles"]!.removeAt(0);
-                                                      }
-                                                      else {
-                                                        systemsEverything["finalTitles"]!.add(systemsEverything["title"]![i].toString());
-                                                      }
-                                                    }
-                                                    else if(systemsEverything["isSelected"]![i] == true) {
-                                                      systemsEverything["isSelected"]![i] = false;
-                                                      systemsEverything["finalTitles"]!.remove(systemsEverything["title"]![i].toString());
-                                                    }
-                                                  });
-
-                                                  int countTopic = 0;
-                                                  for(int j = 0; j<systemsEverything["isSelected"]!.length; j++) {
-                                                    if(systemsEverything["isSelected"]![j] == true) {
-                                                      setState(() {
-                                                        countTopic++;
-                                                      });
-                                                    }
-                                                    else {
-                                                      setState(() {
-                                                        _topicsDisabled = true;
-                                                      });
-                                                    }
-                                                  }
-
-                                                  if(countTopic > 0) {
-                                                    setState(() {
-                                                      _topicsDisabled = false;
-                                                    });
-                                                  }
-
-                                                  //Unchecking the previously checked boxes.
-                                                  if(systemsEverything["isSelected"]![i] == false) {
-                                                    // topicsEverything
-                                                    if(topicsEverything["isSelected"]!.length > 0) {
-                                                      for(int i = 0; i<topicsEverything["isSelected"]!.length; i++) {
-                                                        setState(() {
-                                                          topicsEverything["isSelected"]![i] = false;
-                                                          topicsEverything["finalTitles"] = [];
-                                                        });
-                                                      }
-                                                    }
-                                                  }
-                                                  // print(subjectsEverything["finalTitles"]);
-                                                  // print(systemsEverything["finalTitles"]);
-                                                  // print(topicsEverything["finalTitles"]);
-                                                  getQuestionsCount();
-                                                }
-                                                else {
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) => AlertDialog(
-                                                      content: Text(
-                                                        'Select Subjects First!',
-                                                        style: TextStyle(
-                                                          color: Color(0xffA1A1A1),
-                                                          fontFamily: 'Brandon-bld',
-                                                          fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
-                                                        ),
-                                                      ),
-                                                      actions: <Widget>[
-                                                        Divider(),
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            Navigator.of(context).pop();
-                                                          },
-                                                          child: Text('Okay',
-                                                              style: TextStyle(
-                                                                color: Color(0xff3F2668),
-                                                                fontFamily: 'Brandon-bld',
-                                                                fontSize:
-                                                                (MediaQuery.of(context).size.height) * (21 / 926),
-                                                              )),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                            ),
-                                          ),
-                                      ],
-                                    )
-                                ),
-                              ],
                             ),
                           ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _backTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Back",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _nextTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Next",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    //Tab3: Topics
-                    Column(
-                      children: [
-                        Container(
-                          height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(366/428),
-                          //color: Colors.red,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,//Color(0xff00000029),
-                                spreadRadius: 2,
-                                blurRadius: 2,
-                                offset: Offset(0, 0),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text("Select Topics",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Brandon-bld',
-                                fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
-                              ),),
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
-                        Container(
-                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
-                          width: (MediaQuery.of(context).size.width) *(366/428),
-                          child: Container(
-                            height: (MediaQuery.of(context).size.height) *(460/926),
-                            child: _hasDataLoaded == false ? Text("") : ListView(
-                              scrollDirection: Axis.vertical,
-                              children: [
-                                Container(
-                                    height: (MediaQuery.of(context).size.height) *(120.9/926),
-                                    child: GridView(
-                                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        crossAxisSpacing: (MediaQuery.of(context).size.width) *(30/428),
-                                        mainAxisExtent: (MediaQuery.of(context).size.height) *(40.224/926),),
-                                      children: <Widget>[
-                                        for(int i = 0; i<topicsEverything["title"]!.length; i++)
-                                          Container(
-                                            color: topicsEverything["isSelected"]![i] == true ? Color(0xFF3F2668) : Colors.white,
-                                            child: TextButton(
-                                              style: TextButton.styleFrom(
-                                                  padding: EdgeInsets.zero,),
-                                              child: Text(topicsEverything["title"]![i],
-                                                style: TextStyle(
-                                                  color: topicsEverything["isSelected"]![i] == true ? Colors.white : Color(0xFF3F3D56),
-                                                  fontFamily: 'Brandon-med',
-                                                  fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                                ),),
-                                              onPressed: () {
-                                                if((_systemsDisabled == false) & (_topicsDisabled == false)) {
-                                                  setState(() {
-                                                    if(topicsEverything["isSelected"]![i] == false) {
-                                                      topicsEverything["isSelected"]![i] = true;
-
-                                                      //This if statement is used becaseu this gives an error otherwise. = subjectsEverything["finalTitles"]!.add(subjectsEverything["title"]![i].toString());
-                                                      if(topicsEverything["finalTitles"] == null || topicsEverything["finalTitles"] == []) {
-                                                        print('addasdas');
-                                                        topicsEverything["finalTitles"] = [""];
-                                                        topicsEverything["finalTitles"]!.add(topicsEverything["title"]![i].toString());
-                                                        topicsEverything["finalTitles"]!.removeAt(0);
-                                                      }
-                                                      else {
-                                                        topicsEverything["finalTitles"]!.add(topicsEverything["title"]![i].toString());
-                                                      }
-                                                    }
-                                                    else if(topicsEverything["isSelected"]![i] == true) {
-                                                      topicsEverything["isSelected"]![i] = false;
-                                                      topicsEverything["finalTitles"]!.remove(topicsEverything["title"]![i].toString());
-                                                    }
-                                                  });
-                                                }
-                                                else {
-                                                  showDialog(
-                                                    context: context,
-                                                    builder: (context) => AlertDialog(
-                                                      content: Text(
-                                                        'Select Systems First!',
-                                                        style: TextStyle(
-                                                          color: Color(0xffA1A1A1),
-                                                          fontFamily: 'Brandon-bld',
-                                                          fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
-                                                        ),
-                                                      ),
-                                                      actions: <Widget>[
-                                                        Divider(),
-                                                        TextButton(
-                                                          onPressed: () {
-                                                            Navigator.of(context).pop();
-                                                          },
-                                                          child: Text('Okay',
-                                                              style: TextStyle(
-                                                                color: Color(0xff3F2668),
-                                                                fontFamily: 'Brandon-bld',
-                                                                fontSize:
-                                                                (MediaQuery.of(context).size.height) * (21 / 926),
-                                                              )),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  );
-                                                }
-                                                // print(subjectsEverything["finalTitles"]);
-                                                // print(systemsEverything["finalTitles"]);
-                                                // print(topicsEverything["finalTitles"]);
-                                                getQuestionsCount();
-                                              },
-                                            ),
-                                          ),
-                                      ],
-                                    )
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _backTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Back",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _nextTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Next",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    //Tab4: Question Types
-                    Column(
-                      children: [
-                        Container(
-                          height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(386/428),
-                          //color: Colors.red,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,//Color(0xff00000029),
-                                spreadRadius: 2,
-                                blurRadius: 2,
-                                offset: Offset(0, 0),
-                              ),
-                            ],
-                          ),
-                          child: Center(
-                            child: Text("Select Question Types",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Brandon-bld',
-                                fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
-                              ),),
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
-                        Container(
-                          padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
-                          width: (MediaQuery.of(context).size.width) *(366/428),
-                          height: (MediaQuery.of(context).size.height) *(460/926),
-                          child: Column(
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              for(int i = 1; i<7; i++)
-                                Column(
-                                  children: [
-                                    Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _backTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Back",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _nextTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Next",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      //Tab4: Question Types
+                      Column(
+                        children: [
+                          Container(
+                            height: (MediaQuery.of(context).size.height) *(40.32/926),
+                            width: (MediaQuery.of(context).size.width) *(386/428),
+                            //color: Colors.red,
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,//Color(0xff00000029),
+                                  spreadRadius: 2,
+                                  blurRadius: 2,
+                                  offset: Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text("Select Question Types",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Brandon-bld',
+                                  fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
+                                ),),
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(33/926)),
+                          Container(
+                            padding: EdgeInsets.only(left: (MediaQuery.of(context).size.width) *(10/428), right: (MediaQuery.of(context).size.width) *(10/428)),
+                            width: (MediaQuery.of(context).size.width) *(366/428),
+                            height: (MediaQuery.of(context).size.height) *(460/926),
+                            child: Column(
+                              children: [
+                                for(int i = 1; i<7; i++)
+                                  Column(
                                     children: [
-                                      Container(
-                                        height: (MediaQuery.of(context).size.height) *(40.224/926),
-                                        width: (MediaQuery.of(context).size.width) *(302/428),
-                                        color: _questionTypeSelectedBool[i] == false ? Colors.white : Color(0xFF3F2668),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                              padding: EdgeInsets.zero,),
-                                          child: Text(_questionTypesTitle[i],
-                                            style: TextStyle(
-                                              color: _questionTypeSelectedBool[i] == false ? Color(0xFF3F3D56) : Colors.white,
-                                              fontFamily: 'Brandon-med',
-                                              fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                            ),),
-                                          onPressed: () {
+                                      Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          height: (MediaQuery.of(context).size.height) *(40.224/926),
+                                          width: (MediaQuery.of(context).size.width) *(302/428),
+                                          color: _questionTypeSelectedBool[i] == false ? Colors.white : Color(0xFF3F2668),
+                                          child: TextButton(
+                                            style: TextButton.styleFrom(
+                                                padding: EdgeInsets.zero,),
+                                            child: Text(_questionTypesTitle[i],
+                                              style: TextStyle(
+                                                color: _questionTypeSelectedBool[i] == false ? Color(0xFF3F3D56) : Colors.white,
+                                                fontFamily: 'Brandon-med',
+                                                fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                              ),),
+                                            onPressed: () {
+                                              _questionTypesLogic(i);
+                                              getQuestionsCount();
+                                            },
+                                          ),
+                                        ),
+                                        _questionTypeSelectedBool[i] == false ?
+                                        GestureDetector(
+                                          onTap: () {
                                             _questionTypesLogic(i);
                                             getQuestionsCount();
                                           },
-                                        ),
-                                      ),
-                                      _questionTypeSelectedBool[i] == false ?
-                                      GestureDetector(
-                                        onTap: () {
-                                          _questionTypesLogic(i);
-                                          getQuestionsCount();
-                                        },
-                                        child: Container(
-                                          height: (MediaQuery.of(context).size.height) *(34.224/926),
-                                          width: (MediaQuery.of(context).size.height) *(34.224/926),
-                                          // width: (MediaQuery.of(context).size.width) *(29.224/428),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(width: 9, color: Color(0xFFA1A1A1)),
-                                            borderRadius: BorderRadius.all(Radius.circular(50)),
-                                          ),
-                                        ),
-                                      )
-                                          :
-                                      GestureDetector(
-                                        onTap: () {
-                                          _questionTypesLogic(i);
-                                          getQuestionsCount();
-                                        },
-                                            child: Container(
-                                              child: Icon(Icons.check,
-                                              size: (MediaQuery.of(context).size.height) *(34.224/926),
-                                              color: Color(0xFF3F2668),)
+                                          child: Container(
+                                            height: (MediaQuery.of(context).size.height) *(34.224/926),
+                                            width: (MediaQuery.of(context).size.height) *(34.224/926),
+                                            // width: (MediaQuery.of(context).size.width) *(29.224/428),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(width: 9, color: Color(0xFFA1A1A1)),
+                                              borderRadius: BorderRadius.all(Radius.circular(50)),
                                             ),
                                           ),
+                                        )
+                                            :
+                                        GestureDetector(
+                                          onTap: () {
+                                            _questionTypesLogic(i);
+                                            getQuestionsCount();
+                                          },
+                                              child: Container(
+                                                child: Icon(Icons.check,
+                                                size: (MediaQuery.of(context).size.height) *(34.224/926),
+                                                color: Color(0xFF3F2668),)
+                                              ),
+                                            ),
+                                      ],
+                                      ),
+                                      SizedBox(height: (MediaQuery.of(context).size.height) *(25.224/926)),
                                     ],
-                                    ),
-                                    SizedBox(height: (MediaQuery.of(context).size.height) *(25.224/926)),
-                                  ],
-                                ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _backTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Back",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
                                   ),
-                                ),
-                              ),
+                              ],
                             ),
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _nextTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Next",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-
-                    //Tab5: Generate Quiz
-                    Column(
-                      children: [
-                        Container(
-                          height: (MediaQuery.of(context).size.height) *(40.32/926),
-                          width: (MediaQuery.of(context).size.width) *(386/428),
-                          //color: Colors.red,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                            borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,//Color(0xff00000029),
-                                spreadRadius: 2,
-                                blurRadius: 2,
-                                offset: Offset(0, 0),
-                              ),
-                            ],
                           ),
-                          child: Center(
-                            child: Text("Generate Quiz",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'Brandon-bld',
-                                fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
-                              ),),
-                          ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(22.8/926)),
-                        Container(
-                          width: (MediaQuery.of(context).size.width) *(386/428), // 460/926
-                          height: (MediaQuery.of(context).size.height) *(460/926),
-                          child: Column(
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(10.74/926),),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Center(
-                                child: Text("Set Difficulty Level",
-                                  style: TextStyle(
-                                    color: Color(0xFF232323),
-                                    fontFamily: 'Brandon-med',
-                                    fontSize: (MediaQuery.of(context).size.height) *(16/926),
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _backTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Back",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                              SizedBox(height: (MediaQuery.of(context).size.height) *(26.59/926),),
-                              Row(
-                                children: [
-                                  for(int i = 1; i<6; i++)
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _nextTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Next",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      //Tab5: Generate Quiz
+                      Column(
+                        children: [
+                          Container(
+                            height: (MediaQuery.of(context).size.height) *(40.32/926),
+                            width: (MediaQuery.of(context).size.width) *(386/428),
+                            //color: Colors.red,
+                            decoration: BoxDecoration(
+                              color: Color(0xFF3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15.0), topRight: Radius.circular(15.0),),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,//Color(0xff00000029),
+                                  spreadRadius: 2,
+                                  blurRadius: 2,
+                                  offset: Offset(0, 0),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Text("Generate Quiz",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontFamily: 'Brandon-bld',
+                                  fontSize: (MediaQuery.of(context).size.height) *(26.31/926),//38,
+                                ),),
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(22.8/926)),
+                          Container(
+                            width: (MediaQuery.of(context).size.width) *(386/428), // 460/926
+                            height: (MediaQuery.of(context).size.height) *(460/926),
+                            child: Column(
+                              children: [
+                                Center(
+                                  child: Text("Set Difficulty Level",
+                                    style: TextStyle(
+                                      color: Color(0xFF232323),
+                                      fontFamily: 'Brandon-med',
+                                      fontSize: (MediaQuery.of(context).size.height) *(16/926),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: (MediaQuery.of(context).size.height) *(26.59/926),),
+                                Row(
+                                  children: [
+                                    for(int i = 1; i<6; i++)
+                                      Row(
+                                        children: [
+                                          Container(
+                                          height: (MediaQuery.of(context).size.height) *(40.224/926),
+                                          width: (MediaQuery.of(context).size.width) *((60)/428),
+                                          color: _difficultyLevelBool[i-1] == false ? Color(0xFFE4E4E4) : Color(0xFF7F1AF1),
+                                          child: TextButton(
+                                            style: TextButton.styleFrom(
+                                              padding: EdgeInsets.zero,),
+                                            child: Text(_difficultyLevelTitle[i-1],
+                                              style: TextStyle(
+                                                color: _difficultyLevelBool[i-1] == false ? Color(0xFF3F2668) : Colors.white,
+                                                fontFamily: 'Brandon-med',
+                                                fontSize: (MediaQuery.of(context).size.height)*(13/926),
+                                              ),),
+                                            onPressed: () {
+                                              setState(() {
+                                                if(_difficultyLevelBool[i-1] == false) {
+                                                  _difficultyLevelBool[i-1] = true;
+                                                  _difficultyLevel.add(i);
+                                                }
+                                                else if(_difficultyLevelBool[i-1] == true) {
+                                                  _difficultyLevelBool[i-1] = false;
+                                                  _difficultyLevel.remove(i);
+                                                }
+                                              });
+                                              getQuestionsCount();
+                                            },
+                                          ),
+                                    ),
+                                          if(i != 5)
+                                            // SizedBox(width: (MediaQuery.of(context).size.width) *(46/926)),
+                                            for(int j = 0; j<6; j++)
+                                              Row(
+                                                children: [
+                                                  Container(
+                                                  child: Container(
+                                                    height: (MediaQuery.of(context).size.height) *(2/926),
+                                                    width: (MediaQuery.of(context).size.width) *(3.55/428),
+                                                    decoration: BoxDecoration(
+                                                      color: Color(0xFFE4E4E4),
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                  ),
+                                            ),
+                                                ],
+                                              )
+                                        ],
+                                      ),
+                                  ],
+                                ),
+                                SizedBox(height: (MediaQuery.of(context).size.height) *(48/926),),
+                                Center(
+                                  child: Text("Generate Quiz",
+                                    style: TextStyle(
+                                      color: Color(0xFF232323),
+                                      fontFamily: 'Brandon-med',
+                                      fontSize: (MediaQuery.of(context).size.height) *(16/926),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: (MediaQuery.of(context).size.height) *(28/926),),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
                                     Row(
                                       children: [
                                         Container(
-                                        height: (MediaQuery.of(context).size.height) *(40.224/926),
-                                        width: (MediaQuery.of(context).size.width) *((60)/428),
-                                        color: _difficultyLevelBool[i-1] == false ? Color(0xFFE4E4E4) : Color(0xFF7F1AF1),
-                                        child: TextButton(
-                                          style: TextButton.styleFrom(
-                                            padding: EdgeInsets.zero,),
-                                          child: Text(_difficultyLevelTitle[i-1],
-                                            style: TextStyle(
-                                              color: _difficultyLevelBool[i-1] == false ? Color(0xFF3F2668) : Colors.white,
-                                              fontFamily: 'Brandon-med',
-                                              fontSize: (MediaQuery.of(context).size.height)*(13/926),
-                                            ),),
-                                          onPressed: () {
-                                            setState(() {
-                                              if(_difficultyLevelBool[i-1] == false) {
-                                                _difficultyLevelBool[i-1] = true;
-                                                _difficultyLevel.add(i);
-                                              }
-                                              else if(_difficultyLevelBool[i-1] == true) {
-                                                _difficultyLevelBool[i-1] = false;
-                                                _difficultyLevel.remove(i);
-                                              }
-                                            });
-                                            getQuestionsCount();
-                                          },
-                                        ),
-                                  ),
-                                        if(i != 5)
-                                          // SizedBox(width: (MediaQuery.of(context).size.width) *(46/926)),
-                                          for(int j = 0; j<6; j++)
-                                            Row(
-                                              children: [
-                                                Container(
-                                                child: Container(
-                                                  height: (MediaQuery.of(context).size.height) *(2/926),
-                                                  width: (MediaQuery.of(context).size.width) *(3.55/428),
-                                                  decoration: BoxDecoration(
-                                                    color: Color(0xFFE4E4E4),
-                                                    shape: BoxShape.circle,
+                                            height: (MediaQuery.of(context).size.height) *(30/926),
+                                            width: (MediaQuery.of(context).size.width) *(98/428),
+                                            padding: EdgeInsets.zero,
+                                            margin: EdgeInsets.zero,
+                                            decoration: BoxDecoration(
+                                              color: _tutorMode? Color(0xff3F2668) : Colors.white,
+                                              border: Border.all(color: Color(0xff3F2668)),
+                                              borderRadius: BorderRadius.only(topLeft: Radius.circular(3), bottomLeft: Radius.circular(3)),
+                                            ),
+                                            //color: Colors.red,
+                                            child: InkWell(
+                                              onTap: () {
+                                                if(_tutorMode == false) {
+                                                  setState(() {
+                                                    _tutorMode = true;
+                                                    print(_tutorMode);
+                                                  });
+                                                }
+                                              },
+                                              child: Center(
+                                                child: Text("Tutor Mode",
+                                                  style: TextStyle(
+                                                      color: _tutorMode? Colors.white : Color(0xff3F2668),
+                                                      fontFamily: 'Brandon-med',
+                                                      fontSize: (MediaQuery.of(context).size.height) *(15/926)
                                                   ),
                                                 ),
-                                          ),
-                                              ],
+                                              ),
                                             )
+                                        ),
+                                        Container(
+                                            height: (MediaQuery.of(context).size.height) *(30/926),
+                                            width: (MediaQuery.of(context).size.width) *(98/428),
+                                            padding: EdgeInsets.zero,
+                                            margin: EdgeInsets.zero,
+                                            decoration: BoxDecoration(
+                                              color: _tutorMode? Colors.white : Color(0xff3F2668),
+                                              border: Border.all(color: Color(0xff3F2668)),
+                                              borderRadius: BorderRadius.only(topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
+                                            ),
+                                            //color: Colors.red,
+                                            child: InkWell(
+                                              onTap: () {
+                                                if(_tutorMode == true) {
+                                                  setState(() {
+                                                    _tutorMode = false;
+                                                    // print(_tutorMode);
+                                                  });
+                                                }
+                                              },
+                                              child: Center(
+                                                child: Text("Exam Mode",
+                                                  style: TextStyle(
+                                                      color: _tutorMode? Color(0xff3F2668) : Colors.white,
+                                                      fontFamily: 'Brandon-med',
+                                                      fontSize: (MediaQuery.of(context).size.height) *(15/926)
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                        ),
                                       ],
                                     ),
-                                ],
-                              ),
-                              SizedBox(height: (MediaQuery.of(context).size.height) *(48/926),),
-                              Center(
-                                child: Text("Generate Quiz",
-                                  style: TextStyle(
-                                    color: Color(0xFF232323),
-                                    fontFamily: 'Brandon-med',
-                                    fontSize: (MediaQuery.of(context).size.height) *(16/926),
+                                    Row(
+                                      children: [
+                                        Transform.scale(
+                                          scale: 1,
+                                          child: Container(
+                                            height: (MediaQuery.of(context).size.height) *(20/926),
+                                            child: Switch(
+                                              value: _timedMode,
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  _timedMode = value;
+                                                  // print(_timedMode);
+                                                });
+                                              },
+                                              activeColor: Color(0xff3F2668),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          child: Text("Timed Mode",
+                                            style: TextStyle(
+                                                color: Color(0xff483A3A),
+                                                fontFamily: 'Brandon-med',
+                                                fontSize: (MediaQuery.of(context).size.height) *(15/926)
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(width: (MediaQuery.of(context).size.width) *(10/428)),
+
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: (MediaQuery.of(context).size.height) *(40/926)),
+                                Container(
+                                  padding: EdgeInsets.only(bottom: (MediaQuery.of(context).size.height) *(15/926)),
+                                  child: Row(
+                                    children: [
+                                      Text("Enter The Number Of Questions: ",
+                                        style: TextStyle(
+                                            color: Color(0xff3F3D56),
+                                            fontFamily: 'Brandon-med',
+                                            fontSize: (MediaQuery.of(context).size.height) *(15/926)
+                                        ),
+                                      ),
+                                      Container(
+                                        height: (MediaQuery.of(context).size.height) *(24/926),
+                                        width: (MediaQuery.of(context).size.width) *(40.01/428),
+                                        color: Colors.white,
+                                        child: Form(
+                                          key: _numberOfQuestionsKey,
+                                          child: TextField(
+                                            controller: _textCountController,
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: <TextInputFormatter>[
+                                              FilteringTextInputFormatter.digitsOnly
+                                            ], // Only numbers can be entered
+                                            textAlign: TextAlign.center,
+                                            decoration: InputDecoration(
+                                              hintText: "4",
+                                              hintStyle: TextStyle(color: Color(0xffAEAEAE),
+                                                fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                                fontFamily: 'Brandon-med',),
+                                              contentPadding: EdgeInsets.fromLTRB(2.0, 1, 2.0, 1),
+                                              enabledBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: Color(0xFF7070709E),
+                                                  width: 1.0,
+                                                ),
+                                                borderRadius: BorderRadius.circular(3.0),
+                                              ),
+                                              focusedBorder: OutlineInputBorder(
+                                                borderSide: BorderSide(
+                                                  color: Colors.transparent,
+                                                  width: 0.0,
+                                                ),
+                                              ),
+                                            ),
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                              fontFamily: 'Brandon-med',
+                                            ),
+                                            onChanged: (val) {
+                                              final number = num.tryParse(val);
+                                              if(number != null) {
+                                                var totalQuestions;
+                                                try {
+                                                  totalQuestions = _totalQuestions;
+                                                } catch (error) {
+                                                  ScaffoldMessenger.of(context)
+                                                    ..removeCurrentSnackBar()
+                                                    ..showSnackBar(SnackBar(content: Text("Error")));
+                                                }
+                                                if((int.parse(val)>totalQuestions) || (int.parse(val)>40)) {
+                                                  ScaffoldMessenger.of(context)
+                                                    ..removeCurrentSnackBar()
+                                                    ..showSnackBar(SnackBar(content: Text("Enter a smaller number")));
+                                                  _textCountController.clear();
+                                                  setState(() {
+                                                    _questionsCount = 0;
+                                                  });
+                                                }
+                                                else if(int.parse(val) <= 0) {
+                                                  ScaffoldMessenger.of(context)
+                                                    ..removeCurrentSnackBar()
+                                                    ..showSnackBar(SnackBar(content: Text("Enter a bigger number")));
+                                                  _textCountController.clear();
+                                                  setState(() {
+                                                    _questionsCount = 0;
+                                                  });
+                                                }
+                                                else{
+                                                  setState(() {
+                                                    _questionsCount = int.parse(val);
+                                                  });
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                      ),
+                                      Text("  /" + (_gettingQuestionsCount ? "Loading..." :  _totalQuestions.toString()),
+                                      style: TextStyle(
+                                        color: Color(0xFF98A4A4),
+                                        fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                                        fontFamily: 'Brandon-med',
+                                      ),),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: (MediaQuery.of(context).size.height) *(21/926),),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(68/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
+                                      ),
+                                    ],
+                                  ),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      //Animates to next tab
+                                      _backTab();
+                                    },
+                                    child: Center(
+                                      child: Text("Back",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontFamily: 'Brandon-med',
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                              SizedBox(height: (MediaQuery.of(context).size.height) *(28/926),),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                          height: (MediaQuery.of(context).size.height) *(30/926),
-                                          width: (MediaQuery.of(context).size.width) *(98/428),
-                                          padding: EdgeInsets.zero,
-                                          margin: EdgeInsets.zero,
-                                          decoration: BoxDecoration(
-                                            color: _tutorMode? Color(0xff3F2668) : Colors.white,
-                                            border: Border.all(color: Color(0xff3F2668)),
-                                            borderRadius: BorderRadius.only(topLeft: Radius.circular(3), bottomLeft: Radius.circular(3)),
-                                          ),
-                                          //color: Colors.red,
-                                          child: InkWell(
-                                            onTap: () {
-                                              if(_tutorMode == false) {
-                                                setState(() {
-                                                  _tutorMode = true;
-                                                  print(_tutorMode);
-                                                });
-                                              }
-                                            },
-                                            child: Center(
-                                              child: Text("Tutor Mode",
-                                                style: TextStyle(
-                                                    color: _tutorMode? Colors.white : Color(0xff3F2668),
-                                                    fontFamily: 'Brandon-med',
-                                                    fontSize: (MediaQuery.of(context).size.height) *(15/926)
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                      ),
-                                      Container(
-                                          height: (MediaQuery.of(context).size.height) *(30/926),
-                                          width: (MediaQuery.of(context).size.width) *(98/428),
-                                          padding: EdgeInsets.zero,
-                                          margin: EdgeInsets.zero,
-                                          decoration: BoxDecoration(
-                                            color: _tutorMode? Colors.white : Color(0xff3F2668),
-                                            border: Border.all(color: Color(0xff3F2668)),
-                                            borderRadius: BorderRadius.only(topRight: Radius.circular(3), bottomRight: Radius.circular(3)),
-                                          ),
-                                          //color: Colors.red,
-                                          child: InkWell(
-                                            onTap: () {
-                                              if(_tutorMode == true) {
-                                                setState(() {
-                                                  _tutorMode = false;
-                                                  // print(_tutorMode);
-                                                });
-                                              }
-                                            },
-                                            child: Center(
-                                              child: Text("Exam Mode",
-                                                style: TextStyle(
-                                                    color: _tutorMode? Color(0xff3F2668) : Colors.white,
-                                                    fontFamily: 'Brandon-med',
-                                                    fontSize: (MediaQuery.of(context).size.height) *(15/926)
-                                                ),
-                                              ),
-                                            ),
-                                          )
+                              InkWell(
+                                child: Container(
+                                  margin: EdgeInsets.symmetric(
+                                      horizontal: w * 25),
+                                  height: (MediaQuery.of(context).size.height) *(42/926),
+                                  width: (MediaQuery.of(context).size.width) *(100/428),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
+                                    borderRadius: BorderRadius.all(Radius.circular(3)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,//Color(0xff00000029),
+                                        spreadRadius: 2,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 0),
                                       ),
                                     ],
                                   ),
-                                  Row(
-                                    children: [
-                                      Transform.scale(
-                                        scale: 1,
-                                        child: Container(
-                                          height: (MediaQuery.of(context).size.height) *(20/926),
-                                          child: Switch(
-                                            value: _timedMode,
-                                            onChanged: (value) {
-                                              setState(() {
-                                                _timedMode = value;
-                                                // print(_timedMode);
-                                              });
-                                            },
-                                            activeColor: Color(0xff3F2668),
-                                          ),
-                                        ),
-                                      ),
-                                      Container(
-                                        child: Text("Timed Mode",
-                                          style: TextStyle(
-                                              color: Color(0xff483A3A),
-                                              fontFamily: 'Brandon-med',
-                                              fontSize: (MediaQuery.of(context).size.height) *(15/926)
-                                          ),
-                                        ),
-                                      ),
-                                      SizedBox(width: (MediaQuery.of(context).size.width) *(10/428)),
-
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: (MediaQuery.of(context).size.height) *(40/926)),
-                              Container(
-                                padding: EdgeInsets.only(bottom: (MediaQuery.of(context).size.height) *(15/926)),
-                                child: Row(
-                                  children: [
-                                    Text("Enter The Number Of Questions: ",
-                                      style: TextStyle(
-                                          color: Color(0xff3F3D56),
+                                  child: TextButton(
+                                    onPressed: _gettingQuestionsCount ? null : () {
+                                      print("adsdsa");
+                                      // print(num.tryParse(_questionsCount));
+                                      if(_questionsCount > 0) {
+                                        final result = Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions, timedMode: _timedMode, mode: _tutorMode ? "tutor" : "exam", whatsDone: "new",)),
+                                        );
+                                      }
+                                    },
+                                    child: Center(
+                                      child: Text("Create Quiz",
+                                        style: TextStyle(
+                                          color: Colors.white,
                                           fontFamily: 'Brandon-med',
-                                          fontSize: (MediaQuery.of(context).size.height) *(15/926)
-                                      ),
-                                    ),
-                                    Container(
-                                      height: (MediaQuery.of(context).size.height) *(24/926),
-                                      width: (MediaQuery.of(context).size.width) *(40.01/428),
-                                      color: Colors.white,
-                                      child: Form(
-                                        key: _numberOfQuestionsKey,
-                                        child: TextField(
-                                          keyboardType: TextInputType.number,
-                                          inputFormatters: <TextInputFormatter>[
-                                            FilteringTextInputFormatter.digitsOnly
-                                          ], // Only numbers can be entered
-                                          textAlign: TextAlign.center,
-                                          decoration: InputDecoration(
-                                            hintText: "4",
-                                            hintStyle: TextStyle(color: Color(0xffAEAEAE),
-                                              fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                              fontFamily: 'Brandon-med',),
-                                            contentPadding: EdgeInsets.fromLTRB(2.0, 1, 2.0, 1),
-                                            enabledBorder: OutlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Color(0xFF7070709E),
-                                                width: 1.0,
-                                              ),
-                                              borderRadius: BorderRadius.circular(3.0),
-                                            ),
-                                            focusedBorder: OutlineInputBorder(
-                                              borderSide: BorderSide(
-                                                color: Colors.transparent,
-                                                width: 0.0,
-                                              ),
-                                            ),
-                                          ),
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                            fontFamily: 'Brandon-med',
-                                          ),
-                                          onChanged: (val) {
-                                            final number = num.tryParse(val);
-                                            if(number != null) {
-                                              var totalQuestions;
-                                              try {
-                                                totalQuestions = _totalQuestions;
-                                              } catch (error) {
-                                                ScaffoldMessenger.of(context)
-                                                  ..removeCurrentSnackBar()
-                                                  ..showSnackBar(SnackBar(content: Text("Error")));
-                                              }
-                                              if((int.parse(val)>totalQuestions) || (int.parse(val)>=40)) {
-                                                ScaffoldMessenger.of(context)
-                                                  ..removeCurrentSnackBar()
-                                                  ..showSnackBar(SnackBar(content: Text("Enter a smaller number")));
-                                                setState(() {
-                                                  _questionsCount = 0;
-                                                });
-                                              }
-                                              else{
-                                                setState(() {
-                                                  _questionsCount = int.parse(val);
-                                                });
-                                              }
-                                            }
-                                          },
                                         ),
                                       ),
                                     ),
-                                    Text("  /" + _totalQuestions.toString(),
-                                    style: TextStyle(
-                                      color: Color(0xFF98A4A4),
-                                      fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                                      fontFamily: 'Brandon-med',
-                                    ),),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        SizedBox(height: (MediaQuery.of(context).size.height) *(21/926),),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(68/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    //Animates to next tab
-                                    _backTab();
-                                  },
-                                  child: Center(
-                                    child: Text("Back",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            InkWell(
-                              child: Container(
-                                height: (MediaQuery.of(context).size.height) *(42/926),
-                                width: (MediaQuery.of(context).size.width) *(100/428),
-                                decoration: BoxDecoration(
-                                  color: Color(0xff3F2668),//0xffB0A6C2, rgba(176, 166, 194, 1)
-                                  borderRadius: BorderRadius.all(Radius.circular(3)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black12,//Color(0xff00000029),
-                                      spreadRadius: 2,
-                                      blurRadius: 2,
-                                      offset: Offset(0, 0),
-                                    ),
-                                  ],
-                                ),
-                                child: TextButton(
-                                  onPressed: () {
-                                    print("adsdsa");
-                                    // print(num.tryParse(_questionsCount));
-                                    if(_questionsCount > 0) {
-                                      final result = Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => QuizModule(totalQuestions: _questionsCount, questions: _questions, timedMode: _timedMode, mode: _tutorMode ? "tutor" : "exam", whatsDone: "new",)),
-                                      );
-                                    }
-                                  },
-                                  child: Center(
-                                    child: Text("Create Quiz",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-med',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

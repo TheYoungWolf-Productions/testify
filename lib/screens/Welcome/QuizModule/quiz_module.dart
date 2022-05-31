@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:testify/models/GenerateQuizModels/QuizModuleModels/generate_quiz_model.dart';
 import 'package:testify/models/GetPreviousQuizzesModel/ResumeQuiz/resume_quiz_model.dart';
 import 'package:testify/screens/Authentication/login.dart';
+import 'package:testify/screens/Welcome/PreviousQuiz/previous_quiz.dart';
 import 'package:testify/screens/Welcome/QuizModule/question_explanation.dart';
 import 'package:testify/screens/Welcome/QuizModule/quiz_final.dart';
 import 'package:testify/screens/Welcome/QuizModule/search_bar.dart';
@@ -25,29 +26,30 @@ class QuizModule extends StatefulWidget {
   final List<int> questions;
   final bool timedMode;
   final String mode; // tutor/ exam
-  final String whatsDone; // new(From Generate Quiz), resumed, reviewed
+  final String whatsDone; // new(From Generate Quiz), resumed, review
   @override
   _QuizModuleState createState() => _QuizModuleState();
 }
 
 class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
-  int endTime = DateTime.now().millisecondsSinceEpoch + 1000 * 30;
+  // int endTime = DateTime.now().millisecondsSinceEpoch + 1000 * 300;
+  late int endTime;
+  int selectedIndex = 0;
   List<String> _questions = ['1', '2', '3', '4'];
   String _currentQuestion = '1';
-  int _currentSelected = 0;
-  String _labValues="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.";
-  String _note="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.";
+  final String _labValues =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.";
+  String _note =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras imperdiet finibus elit non luctus. Morbi auctor mattis ante.";
   late TextEditingController _textController;
   double _fontSize = 18; // To change font size
   bool _showTextZoom = false; // To show ths slider
+  bool _showMenu=false;
 
   int timeElapsed = 0;
+
   /// declare a timer
   Timer? timer;
-  // Timer? saveQuiz; // Saves quiz every few seconds.
-
-  //BottomNavBar
-  int _selectedIndex = 0;
 
   // This key is used to open the side drawer
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
@@ -71,14 +73,6 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
   // To void null safety error
   bool hasDataLoaded = false;
   bool ranSaveQuizAtTheStart = false; // To auto save the quiz at the start and avoid the quizzes from being suspended
-  // if(hasDataLoaded = true) {
-  // if(ranSaveQuizAtTheStart = false) {
-  // SaveQuizAPI();
-  // setState(() {
-  // ranSaveQuizAtTheStart = true;
-  // });
-  // }
-  // }
 
   //Storing the data required to display quiz questions and store their answers
   var questionsData = {
@@ -88,18 +82,22 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
     "correct_msg": [], // This is the explanation
     "options": [], // A list would be added to this list
     "statistics": [], // [1, 0, 0]
-    "answeredCorrectly": [], // Stores string and turns true if answered correctly. Can't be a bool since values are correct/incorrect/notAnswered
+    "answeredCorrectly":
+    [], // Stores string and turns true if answered correctly. Can't be a bool since values are correct/incorrect/notAnswered
     "optionSelectedInt": [], //To change Icon and color
     "notes": [],
     "submitData": [],
-    "SelectedOptionsArray": []
+    "SelectedOptionsArray": [],
+    "eachQuestionTimer": [] // Time user took to solve each question.
     // "isSelected": []
   };
   var addToSelectedOptionsArray = {
     "index": "",
     "Correctanswerindex": "", // indexOfOptionThatIsActuallyCorrect
-    "correct": "", // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
-    "optionIndexSelected": ""
+    "correct":
+    "", // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect, always an int
+    "optionIndexSelected": "",
+    "time": ""
   };
 
   @override
@@ -107,11 +105,9 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
     super.initState();
     _textController = TextEditingController();
     WidgetsBinding.instance!.addObserver(this);
-    if(widget.whatsDone == "new")
+    if (widget.whatsDone == "new")
       GenerateQuizAPI();
-    else if(widget.whatsDone == "resumed")
-      ResumeQuizAPI();
-
+    else if (widget.whatsDone == "resumed") ResumeQuizAPI();
     timer = Timer.periodic(
       const Duration(seconds: 1),
           (timer) {
@@ -121,152 +117,214 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
       },
     );
 
-    // saveQuiz = Timer.periodic(
-    //   const Duration(seconds: 10),
-    //       (timer) {
-    //         SaveQuizAPI();
-    //   },
-    // );
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) async {
-    super.didChangeAppLifecycleState(state);
 
-    final isBackground = state == AppLifecycleState.paused;
-    final isClosed = state == AppLifecycleState.detached;
-    if(isBackground) { // As soon as the user closes the app this runs. The application is still in the app switcher(ram)
-      print("xD in Background");
-      SaveQuizAPI("suspended");
-      // ScaffoldMessenger.of(context)
-      //   ..removeCurrentSnackBar()
-      //   ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as Suspended!")));
-      Navigator.of(context).pop();
-    }
-    if(isClosed) { // When app is closed from the app switcher. Doesn't run for now for some odd reason.
-      print("xD Closed");
-    }
-  }
 
   Future<void> ResumeQuizAPI() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/resumeQuiz";
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/solver/resumeQuiz";
     var quizID = prefs.getInt("quizId");
     _token = prefs.getString('token')!;
     print(_token);
     _userId = prefs.getInt("userId")!;
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
-          "quizId": quizID
-        })
-    ).then((response) {
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({"quizId": quizID}))
+        .then((response) {
       // print(jsonDecode(response.body).toString());
-      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+      if ((response.statusCode == 200) &
+      (json.decode(response.body).toString().substring(0, 14) !=
+          "{status: false")) {
+        _quizId = quizID;
         final responseString = (response.body);
         var resumeQuizSuccessful1 = resumeQuizModelFromJson(responseString);
         final ResumeQuizModel resumeQuizSuccessful = resumeQuizSuccessful1;
         setState(() {
           _resumeQuizSuccessful = resumeQuizSuccessful;
-          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
-          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTotalQuestions);
-          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizQuestions);
-          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus);
-          print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed);
-          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizId.runtimeType);
-          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizScore.runtimeType);
-          // _quizId = _getGenerateQuizSuccessful.data.quizId;
-          // print(_quizId);
+          endTime = endTimeFunction();
+          // print(
+          //     _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
+          // print(_resumeQuizSuccessful
+          //     .data.previousQuizzes[0].quizMeta.quizTotalQuestions);
+          // print(_resumeQuizSuccessful
+          //     .data.previousQuizzes[0].quizMeta.quizQuestions);
+          // print(_resumeQuizSuccessful
+          //     .data.previousQuizzes[0].quizMeta.quizStatus);
+          // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.isTimed);
+          // print(" Time used up is: " +
+          //     _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTime);
         });
         categoriesGenerateQuizData();
-        // categoriesGenerateQuizData();
+      } else {
+        // Token Invalid
       }
-      else { // Token Invalid
-
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
       }
-    }
-    );
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
-  Future<void> submitAnswerAPI(int? indexOfOptionThatIsActuallyCorrect, int? correct, int? optionIndexSelected) async { // doesn't work properly in exam mode
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/submitAnswer";
+  Future<void> submitAnswerAPI(int? indexOfOptionThatIsActuallyCorrect, int? correct, int? optionIndexSelected) async {
+    // doesn't work properly in exam mode
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/solver/submitAnswer";
     // print(_token);
     SharedPreferences prefs = await SharedPreferences.getInstance();
     var _quizID = prefs.getInt("quizId");
 
-    print(widget.whatsDone);
-    print("user id: "+ _userId.toString());
-    print("questionId: "+ questionsData["id"]![questionNumber].toString());
-    print("quizId" + _quizID.toString());
-    print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
-    print("correct: " + correct.toString());
-    print("optionIndexSelected: " + optionIndexSelected.toString());
+    // print(widget.whatsDone);
+    // print("user id: " + _userId.toString());
+    // print("questionId: " + questionsData["id"]![questionNumber].toString());
+    // print("quizId" + _quizID.toString());
+    // print("indexOfOptionThatIsActuallyCorrect: " +
+    //     indexOfOptionThatIsActuallyCorrect.toString());
+    // print("correct: " + correct.toString());
+    // print("optionIndexSelected: " + optionIndexSelected.toString());
+    // print("eachQuestionTimer: " +
+    //     questionsData["eachQuestionTimer"]![questionNumber].toString());
 
-
-
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
-          "data":{
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({
+          "data": {
             "userId": _userId.toString(),
             "questionId": questionsData["id"]![questionNumber].toString(),
             // "quizId": widget.whatsDone == "new" ? _getGenerateQuizSuccessful.data.quizId.toString() : _resumeQuizSuccessful.data.previousQuizzes[0].quizId.toString(),
             "quizId": _quizID.toString(),
-            "answerMeta":{
+            "answerMeta": {
               "index": questionsData["id"]![questionNumber].toString(),
-              "Correctanswerindex": indexOfOptionThatIsActuallyCorrect.toString(), // indexOfOptionThatIsActuallyCorrect
-              "correct": correct.toString(), // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
-              "optionIndexSelected": optionIndexSelected.toString()
+              "Correctanswerindex": indexOfOptionThatIsActuallyCorrect
+                  .toString(), // indexOfOptionThatIsActuallyCorrect
+              "correct": correct as int, // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+              "optionIndexSelected": optionIndexSelected.toString(),
+              "time": questionsData["eachQuestionTimer"]![questionNumber]
+                  .toString(),
             }
           }
-        })
-    ).then((response) {
-      if((response.statusCode == 200)) {
+        }))
+        .then((response) {
+      if ((response.statusCode == 200)) {
         print(jsonDecode(response.body).toString());
-        if((jsonDecode(response.body).toString()) == "{data: {status: true, message: Answer Submitted}}") {
-
+        if ((jsonDecode(response.body).toString()) ==
+            "{data: {status: true, message: Answer Submitted}}") {
         } else {
           ScaffoldMessenger.of(context)
             ..removeCurrentSnackBar()
             ..showSnackBar(SnackBar(content: Text("Error! Answer not Saved!")));
         }
-      }
-      else { // Token Invalid
+      } else {
+        // Token Invalid
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
         final result = Navigator.pushAndRemoveUntil<void>(
           context,
-          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          MaterialPageRoute<void>(
+              builder: (BuildContext context) =>
+              const Login(fromWhere: "Home")),
           ModalRoute.withName('/'),
         );
       }
-    }
-    );
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
-
   Future<void> SaveQuizAPI(String saveAs, [bool? hasUserClicked]) async {
+    // if(widget.whatsDone == "resumed") {
+    //   if(_resumeQuizSuccessful
+    //       .data
+    //       .previousQuizzes[
+    //   0]
+    //       .quizMeta
+    //       .quizStatus
+    //       .toString() ==
+    //       "completed") {
+    //     final result = Navigator.of(context)
+    //         .popUntil(ModalRoute.withName("/home"));
+    //     final result1 = Navigator.push(
+    //       context,
+    //       MaterialPageRoute(builder: (context) => PreviousQuiz()),
+    //     );
+    //   }
+    // }
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    widget.whatsDone == "new" ? prefs.setInt("quizId", _getGenerateQuizSuccessful.data.quizId) : null;
-    var _quizID = widget.whatsDone == "new" ? _getGenerateQuizSuccessful.data.quizId.toString() : _resumeQuizSuccessful.data.previousQuizzes[0].quizId.toString();
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/saveQuiz";
-    print(widget.totalQuestions);
+    widget.whatsDone == "new"
+        ? prefs.setInt("quizId", _getGenerateQuizSuccessful.data.quizId)
+        : null;
+    var _quizID = widget.whatsDone == "new"
+        ? _getGenerateQuizSuccessful.data.quizId.toString()
+        : _resumeQuizSuccessful.data.previousQuizzes[0].quizId.toString();
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/solver/saveQuiz";
     var date = new DateTime.now().toString().split(".");
     date = date[0].split(" ");
-    print(date);
     int quizScore = 0;
     var addToOmittedQuestionsArray = [];
     var finalSelectedOptionsArray = [];
     var totalQuizTime = timeElapsed.toString();
-    for(int i = 0; i<questionsData["answeredCorrectly"]!.length; i++) {
-      if(questionsData["answeredCorrectly"]![i] == "correct") {
+    for (int i = 0; i < questionsData["answeredCorrectly"]!.length; i++) {
+      if (questionsData["answeredCorrectly"]![i] == "correct") {
         quizScore++;
       }
     }
-    if(widget.mode == "exam") {
+    if (widget.mode == "exam") {
+      //print("SelectedOptionsArray is" + questionsData["SelectedOptionsArray"].toString());
       if ((questionsData["SelectedOptionsArray"] != null) ||
           (questionsData["SelectedOptionsArray"] != [])) {
         for (int i = 0; i < questionsData["answeredCorrectly"]!.length; i++) {
@@ -278,175 +336,288 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
         }
       }
     }
-    if(saveAs == "completed") {
-      for(int i = 0; i<questionsData["answeredCorrectly"]!.length; i++) {
-        if(questionsData["answeredCorrectly"]![i] == "notAnswered") {
+    if (saveAs == "completed") {
+      for (int i = 0; i < questionsData["answeredCorrectly"]!.length; i++) {
+        if (questionsData["answeredCorrectly"]![i] == "notAnswered") {
           var addToOmittedQuestions = {
-              "index": questionsData["id"]![i].toString(),
-              "Correctanswerindex": "-1", // indexOfOptionThatIsActuallyCorrect
-              "correct": "-1", // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
-              "optionIndexSelected": "-1"
+            "index": questionsData["id"]![i].toString(),
+            "Correctanswerindex": "-1", // indexOfOptionThatIsActuallyCorrect
+            "correct":
+            int.parse("-1"), // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+            "optionIndexSelected": "-1",
+            "time": "0"
           };
           addToOmittedQuestionsArray.add(addToOmittedQuestions);
         }
       }
     }
-    if(saveAs == "suspended") {
+    if (saveAs == "suspended") {
       addToOmittedQuestionsArray = [];
     }
-    // print(addToOmittedQuestionsArray);
-    //
-    // print("Start: ");
-    // print("quizId: " + _quizID.toString());
-    // print("quizTitle: " + "Custom Quiz" + date[0].toString());
-    // print("quizDate: " + date[0].toString());
-    // print("quizScore: " + quizScore.toString());
-    // print("quizTotalQuestions: " + widget.totalQuestions.toString());
-    // print("quizStatus: " + saveAs);
-    // print("quizQuestions: " + questionsData["id"].toString());
-    // print("quizMode: " + widget.mode);
-    // print("quizTime: " + totalQuizTime.toString());
-    // print("isTimed: " + widget.timedMode.toString());
-    // print("omittedQuestions: " + addToOmittedQuestionsArray.toString());
-    // print("SelectedOptionsArray: " + questionsData["SelectedOptionsArray"].toString());
-    // print("finalSelectedOptionsArray: " + finalSelectedOptionsArray.toString());
-    // print("userId: " + _userId.toString());
-    // print(" :End");
-
-    await http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
-          "data":
-          {
-            "quiz" : {
-              "quizId": widget.whatsDone == "new" ? _getGenerateQuizSuccessful.data.quizId.toString() : _resumeQuizSuccessful.data.previousQuizzes[0].quizId.toString(),
-              "quizTitle": "Custom Quiz" + date[0].toString(), // "Custom Quiz" + Date.now()
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({
+          "data": {
+            "quiz": {
+              "quizId": widget.whatsDone == "new"
+                  ? _getGenerateQuizSuccessful.data.quizId.toString()
+                  : _resumeQuizSuccessful.data.previousQuizzes[0].quizId
+                  .toString(),
+              "quizTitle": "Custom Quiz" +
+                  date[0].toString(), // "Custom Quiz" + Date.now()
               "quizDate": date[0].toString(), // "Custom Quiz"
               "quizScore": quizScore.toString(), // total correct
               "quizTotalQuestions": widget.totalQuestions.toString(),
-              "quizStatus": saveAs, // == "completed" ? "completed" : "suspended", // "completed", "suspended"
-              "quizQuestions": questionsData["id"].toString(), // Question IDs
+              "quizStatus":
+              saveAs, // == "completed" ? "completed" : "suspended", // "completed", "suspended"
+              "quizQuestions":
+              questionsData["id"].toString(), // Question IDs
               "quizMode": widget.mode, // "tutor", "exam"
-              "quizTime": totalQuizTime.toString(), // total quiz time in seconds
+              "quizTime":
+              totalQuizTime.toString(), // total quiz time in seconds
               "isTimed": widget.timedMode, // bool true or false
-              "omittedQuestions": addToOmittedQuestionsArray, // Don't send anything here
-              "SelectedOptionsArray": widget.mode == "exam" ? finalSelectedOptionsArray : [] // Don't send anything here
+              "omittedQuestions":
+              addToOmittedQuestionsArray, // Don't send anything here
+              "SelectedOptionsArray": widget.mode == "exam"
+                  ? finalSelectedOptionsArray
+                  : [] // Don't send anything here
             },
             "userId": _userId.toString()
           }
+        }))
+        .then((response) async {
+      //print(jsonDecode(response.body).toString());
+      if ((response.statusCode == 200) &
+      (json.decode(response.body).toString().substring(0, 14) !=
+          "{status: false")) {
+        if (hasUserClicked == true) {
+          if (widget.whatsDone == "resumed") {
+            if (_resumeQuizSuccessful
+                .data.previousQuizzes[0].quizMeta.quizStatus ==
+                "completed") {
+              ScaffoldMessenger.of(context)
+                ..removeCurrentSnackBar()
+                ..showSnackBar(SnackBar(
+                    content: Text("Review Complete!")));
+              Navigator.of(context)
+                  .popUntil(ModalRoute.withName("/home"));
+              // await Navigator.push(
+              //         context,
+              //         MaterialPageRoute(builder: (context) => PreviousQuiz()),
+              //       );
+            } else if (_resumeQuizSuccessful
+                .data.previousQuizzes[0].quizMeta.quizStatus ==
+                "suspended") {
+              ScaffoldMessenger.of(context)
+                ..removeCurrentSnackBar()
+                ..showSnackBar(SnackBar(
+                    content: Text("The Quiz has been saved as $saveAs!")));
+
+              Navigator.of(context)
+                  .popUntil(ModalRoute.withName("/home"));
+              // final result1 = Navigator.push(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => TestResults(quizId: _quizId, fromWhere: 'QuizModule',)),
+              // );
+            }
+          } else if (widget.whatsDone == "new") {
+            ScaffoldMessenger.of(context)
+              ..removeCurrentSnackBar()
+              ..showSnackBar(
+                  SnackBar(content: Text("The Quiz has been saved as $saveAs!")));
+
+            Navigator.of(context)
+                .popUntil(ModalRoute.withName("/home"));
+            // final result1 = Navigator.push(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => TestResults(quizId: _quizId, fromWhere: 'QuizModule',)),
+            // );
+          }
         }
-
-        )
-    ).then((response) async {
-      print(jsonDecode(response.body).toString());
-      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
-
-      }
-      else { // Token Invalid
+      } else {
+        // Token Invalid
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
         final result = Navigator.pushAndRemoveUntil<void>(
           context,
-          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          MaterialPageRoute<void>(
+              builder: (BuildContext context) =>
+              const Login(fromWhere: "Home")),
           ModalRoute.withName('/'),
         );
       }
-    }
-    ).whenComplete(() {
-      if(hasUserClicked == true) {
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
-          ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as $saveAs!")));
-        Navigator.of(context)
-            .popUntil(ModalRoute.withName("/home"));
-        final result = Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => QuizFinal()),
-        );
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
       }
     });
-
   }
 
   Future<void> GenerateQuizAPI() async {
     print("Mode: " + widget.mode.toString());
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/generator/generateQuiz";
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/generator/generateQuiz";
     _token = prefs.getString('token')!;
     _userId = prefs.getInt("userId")!;
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
-          "data":
-          {
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({
+          "data": {
             "questionIds": widget.questions,
             "count": widget.totalQuestions
           }
-        })
-    ).then((response) {
+        }))
+        .then((response) {
       // print("This is: " + jsonDecode(response.body).toString());
-      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+      if ((response.statusCode == 200) &
+      (json.decode(response.body).toString().substring(0, 14) !=
+          "{status: false")) {
         final responseString = (response.body);
-        var generateQuizSuccessful = generateQuizSuccessfulFromJson(responseString);
-        final GenerateQuizSuccessful getGenerateQuizSuccessful = generateQuizSuccessful;
+        var generateQuizSuccessful =
+        generateQuizSuccessfulFromJson(responseString);
+        final GenerateQuizSuccessful getGenerateQuizSuccessful =
+            generateQuizSuccessful;
         setState(() {
           _getGenerateQuizSuccessful = getGenerateQuizSuccessful;
           _quizId = _getGenerateQuizSuccessful.data.quizId;
+          endTime = endTimeFunction();
           print(_quizId);
         });
         categoriesGenerateQuizData();
+      } else {
+        // Token Invalid
       }
-      else { // Token Invalid
-
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
       }
-    }
-    );
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   Future<void> BookmarkQuestionAPI() async {
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/solver/markQuestion";
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/solver/markQuestion";
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({
           "data": {
             "userId": _userId,
             "questionId": questionsData["id"]![questionNumber].toString(),
             "tableName": "marked_questions",
             "isMarked": true
           }
-        })
-    ).then((response) {
-      if((response.statusCode == 200)) { //  & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
+        }))
+        .then((response) {
+      if ((response.statusCode == 200)) {
+        //  & (json.decode(response.body).toString().substring(0,14) != "{status: false")) {
         print(jsonDecode(response.body).toString());
-      }
-      else { // Token Invalid
+      } else {
+        // Token Invalid
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Token Invalid!")));
         final result = Navigator.pushAndRemoveUntil<void>(
           context,
-          MaterialPageRoute<void>(builder: (BuildContext context) => const Login(fromWhere:"Home")),
+          MaterialPageRoute<void>(
+              builder: (BuildContext context) =>
+              const Login(fromWhere: "Home")),
           ModalRoute.withName('/'),
         );
       }
-    }
-    );
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   Future<void> addNotesAPI() async {
-    // print(_userId);
-    // print(questionsData["id"]![questionNumber].toString());
-    // print(_quizId);
-    // print(_note);
-    final String apiUrlGenerateQuiz = "https://demo.pookidevs.com/quiz/notes/addNotes";
-    http.post(Uri.parse(apiUrlGenerateQuiz), headers: <String, String>{
-      'Content-type': 'application/json; charset=UTF-8', 'Authorization' : _token.toString(),
-    }, body: json.encode(
-        {
+    final String apiUrlGenerateQuiz =
+        "https://demo.pookidevs.com/quiz/notes/addNotes";
+    http
+        .post(Uri.parse(apiUrlGenerateQuiz),
+        headers: <String, String>{
+          'Content-type': 'application/json; charset=UTF-8',
+          'Authorization': _token.toString(),
+        },
+        body: json.encode({
           "data": {
             "userId": _userId,
             "questionId": questionsData["id"]![questionNumber].toString(),
@@ -454,32 +625,61 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
             "note": _note,
             "tableName": "notes"
           }
-        }
-        )
-    ).then((response) {
-      // print(jsonDecode(response.body).toString());
-      // print(json.decode(response.body).toString().substring(json.decode(response.body).toString().length-12,json.decode(response.body).toString().length));
-      if((response.statusCode == 200) & (json.decode(response.body).toString().substring(json.decode(response.body).toString().length-12,json.decode(response.body).toString().length) == "Note Added}}")) {
+        }))
+        .then((response) {
+      if ((response.statusCode == 200) &
+      (json.decode(response.body).toString().substring(
+          json.decode(response.body).toString().length - 12,
+          json.decode(response.body).toString().length) ==
+          "Note Added}}")) {
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Note Added!")));
-      }
-      else if((response.statusCode == 200) & (json.decode(response.body).toString().substring(0,14) == "{status: false")) { // Token Invalid
+      } else if ((response.statusCode == 200) &
+      (json.decode(response.body).toString().substring(0, 14) ==
+          "{status: false")) {
+        // Token Invalid
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Token Expired!")));
-        final result = Navigator.push(
+        final result = Navigator.pushAndRemoveUntil<void>(
           context,
-          MaterialPageRoute(builder: (context) => const Login(fromWhere:"Home")),
+          MaterialPageRoute<void>(
+              builder: (BuildContext context) =>
+              const Login(fromWhere: "Home")),
+          ModalRoute.withName('/'),
         );
-      }
-      else {
+      } else {
         ScaffoldMessenger.of(context)
           ..removeCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text("Note not Added!")));
       }
-    }
-    );
+    }).catchError((error){
+      setState(() {
+        hasDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   void categoriesGenerateQuizData() async {
@@ -493,15 +693,15 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
       questionsData["optionSelectedInt"] = [];
       questionsData["notes"] = [];
       questionsData["submitData"] = [];
-      questionsData["SelectedOptionsArray"] = [];
+      questionsData["SelectedOptionsArray"] = []; //eachQuestionTimer
+      questionsData["eachQuestionTimer"] = [];
       _questions = [];
     });
-    if(widget.whatsDone == "new")
-    {
+    if (widget.whatsDone == "new") {
       int c = 0;
       if (_getGenerateQuizSuccessful != null) {
         while ((c < _getGenerateQuizSuccessful.data.questions.toList().length) &
-            (_getGenerateQuizSuccessful.data.questions.toList().length > 0)) {
+        (_getGenerateQuizSuccessful.data.questions.toList().length > 0)) {
           // questionsData
           setState(() {
             questionsData["id"]!
@@ -516,8 +716,10 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 .data.questions[c].correctMsg); //answeredCorrectly
             questionsData["answeredCorrectly"]!.add("notAnswered");
             questionsData["optionSelectedInt"]!.add(0);
-            questionsData["SelectedOptionsArray"]!.add(addToSelectedOptionsArray);
+            questionsData["SelectedOptionsArray"]!
+                .add(addToSelectedOptionsArray);
             _questions.add((c + 1).toString());
+            questionsData["eachQuestionTimer"]!.add(0);
           });
           c++;
         }
@@ -535,8 +737,8 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
       }
     }
     // print(questionsData);
-    else if(widget.whatsDone == "resumed")
-    { // Have to complete Exam Mode
+    else if (widget.whatsDone == "resumed") {
+      // Have to complete Exam Mode
       int c = 0;
       if (_resumeQuizSuccessful != null) {
         while ((c < _resumeQuizSuccessful.data.questions.length) &
@@ -557,30 +759,45 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
             questionsData["optionSelectedInt"]!.add(0);
             // questionsData["SelectedOptionsArray"]![c] = _resumeQuizSuccessful.data.previousQuizzes[0].quiz_meta.selectedOptionsArray
             _questions.add((c + 1).toString());
-            if(widget.mode == "exam") {
-              questionsData["SelectedOptionsArray"]!.add(addToSelectedOptionsArray);
+            questionsData["eachQuestionTimer"]!.add(0);
+            if (widget.mode == "exam") {
+              questionsData["SelectedOptionsArray"]!
+                  .add(addToSelectedOptionsArray);
               // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray);
             }
-            if(_resumeQuizSuccessful.data.questions[c].notes != null) { // notes
-              questionsData["notes"]!.add(_resumeQuizSuccessful
-                  .data.questions[c].notes);
+            if (_resumeQuizSuccessful.data.questions[c].notes != null) {
+              // notes
+              questionsData["notes"]!
+                  .add(_resumeQuizSuccessful.data.questions[c].notes);
             } else {
               questionsData["notes"]!.add("");
             }
-            if(_resumeQuizSuccessful.data.questions[c].submitData != null) { // submitData
+            if (_resumeQuizSuccessful.data.questions[c].submitData != null) {
+              // submitData
               String str = _resumeQuizSuccessful.data.questions[c].submitData;
               str = str.replaceAll("\\", "");
               var strMap = json.decode(str);
-              // print(strMap);
-              if(strMap['correct'] == '1') {
-                questionsData["answeredCorrectly"]![c] = "correct";
+              print(strMap);
+              if(widget.mode == "exam") {
+                if (strMap['correct'].toString() == "1") {
+                  questionsData["answeredCorrectly"]![c] = "correct";
+                } else if (strMap['correct'].toString() == "0") {
+                  questionsData["answeredCorrectly"]![c] = "incorrect";
+                }
               }
-              else if (strMap['correct'] == '0') {
-                questionsData["answeredCorrectly"]![c] = "incorrect";
+              else if(widget.mode == "tutor") {
+                if (strMap['correct'] == 1) {
+                  questionsData["answeredCorrectly"]![c] = "correct";
+                } else if (strMap['correct'] == 0) {
+                  questionsData["answeredCorrectly"]![c] = "incorrect";
+                }
               }
-              questionsData["optionSelectedInt"]![c] = int.parse(strMap['optionIndexSelected']);
-              questionsData["submitData"]!.add(_resumeQuizSuccessful
-                  .data.questions[c].submitData);
+              questionsData["optionSelectedInt"]![c] =
+                  int.parse(strMap['optionIndexSelected']);
+              questionsData["eachQuestionTimer"]![c] =
+                  int.parse(strMap['time']);
+              questionsData["submitData"]!
+                  .add(_resumeQuizSuccessful.data.questions[c].submitData);
             } else {
               questionsData["submitData"]!.add("");
             }
@@ -588,18 +805,56 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
           c++;
         }
         // Adding data to questionsData["SelectedOptionsArray"]
-        if(widget.mode == "exam") {
-          if((_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray != null) || (_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray != [])) {
-            for(int i = 0; i<_resumeQuizSuccessful.data.questions.length; i++) {
-              for(int j = 0; j<_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray.length; j++) {
-                if(_resumeQuizSuccessful.data.questions[i].id.toString() == _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray[j].index) {
-                  if(_resumeQuizSuccessful.data.questions[i].submitData != null) {
+        if (widget.mode == "exam") {
+          if ((_resumeQuizSuccessful
+              .data.previousQuizzes[0].quizMeta.selectedOptionsArray !=
+              null) ||
+              (_resumeQuizSuccessful
+                  .data.previousQuizzes[0].quizMeta.selectedOptionsArray !=
+                  [])) {
+            for (int i = 0;
+            i < _resumeQuizSuccessful.data.questions.length;
+            i++) {
+              for (int j = 0;
+              j <
+                  _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta
+                      .selectedOptionsArray.length;
+              j++) {
+                if (_resumeQuizSuccessful.data.questions[i].id.toString() ==
+                    _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta
+                        .selectedOptionsArray[j].index) {
+                  if (_resumeQuizSuccessful.data.questions[i].submitData !=
+                      null) {
                     setState(() {
+                      print("Correct runtype: " + _resumeQuizSuccessful
+                          .data
+                          .previousQuizzes[0]
+                          .quizMeta
+                          .selectedOptionsArray[j]
+                          .correct.runtimeType.toString());
                       questionsData["SelectedOptionsArray"]![i] = {
-                        "index": _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray[j].index,
-                        "Correctanswerindex": _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray[j].correctanswerindex, // indexOfOptionThatIsActuallyCorrect
-                        "correct": _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray[j].correct, // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
-                        "optionIndexSelected": _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.selectedOptionsArray[j].optionIndexSelected
+                        "index": _resumeQuizSuccessful.data.previousQuizzes[0]
+                            .quizMeta.selectedOptionsArray[j].index,
+                        "Correctanswerindex": _resumeQuizSuccessful
+                            .data
+                            .previousQuizzes[0]
+                            .quizMeta
+                            .selectedOptionsArray[j]
+                            .correctanswerindex, // indexOfOptionThatIsActuallyCorrect
+                        "correct": _resumeQuizSuccessful
+                            .data
+                            .previousQuizzes[0]
+                            .quizMeta
+                            .selectedOptionsArray[j]
+                            .correct.toString(), // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+                        "optionIndexSelected": _resumeQuizSuccessful
+                            .data
+                            .previousQuizzes[0]
+                            .quizMeta
+                            .selectedOptionsArray[j]
+                            .optionIndexSelected,
+                        "time": _resumeQuizSuccessful.data.previousQuizzes[0]
+                            .quizMeta.selectedOptionsArray[j].time
                       };
                     });
                   }
@@ -608,14 +863,20 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
             }
           }
         }
-        print(questionsData["SelectedOptionsArray"]);
-        print(questionsData["answeredCorrectly"]);
+        //print(questionsData["SelectedOptionsArray"]![0]["correct"].runtimeType);
+        //print(questionsData["answeredCorrectly"]);
         setState(() {
           hasDataLoaded = true;
         });
         if (hasDataLoaded == true) {
           if (ranSaveQuizAtTheStart == false) {
-            SaveQuizAPI("suspended");
+            if(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus.toString() == "completed") {
+              // Do Nothing
+            }
+            else {
+              SaveQuizAPI("suspended");
+            }
+            //SaveQuizAPI("suspended");
             setState(() {
               ranSaveQuizAtTheStart = true;
             });
@@ -623,29 +884,22 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
         }
       }
     }
-    // print(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizMode);
   }
 
   // To change text size - text zoom
   Widget _textZoom(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-      },
+      onTap: () {},
       child: Container(
         height: ((MediaQuery.of(context).size.height) * (51 / 926)),
-        decoration: const BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[Color(0xff7F1AF1), Color(0xff482384)])),
+        color: Colors.white,
         child: new Slider(
           value: _fontSize,
-          activeColor: Colors.white,
-          inactiveColor: Colors.red,
+          activeColor: Color(0xff482384),
+          inactiveColor: Colors.grey,
           onChanged: (double value) {
             setState(() {
               _fontSize = value;
-              print(_fontSize);
             });
           },
           divisions: 4,
@@ -656,15 +910,291 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
     );
   }
 
-
-  void onEnd() {
+  void onEnd() async {
     print('onEnd');
+    // Uncomment this when testing is complete.
+    // await SaveQuizAPI("completed", true);
+  }
+
+  int endTimeFunction() {
+    // widget.whatsDone == "new" ? (widget.totalQuestions * 120) : widget.whatsDone == "resumed" ? _resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTime
+    if (widget.whatsDone == "new") {
+      print("New: " + (widget.totalQuestions * 120).toString());
+      return ((DateTime.now().millisecondsSinceEpoch) +
+          (1000 * widget.totalQuestions * 120));
+    } else if (widget.whatsDone == "resumed") {
+      if (int.parse(_resumeQuizSuccessful
+          .data.previousQuizzes[0].quizMeta.quizTime) <=
+          (widget.totalQuestions * 120)) {
+        print("Resumed: " +
+            ((widget.totalQuestions * 120) -
+                (int.parse(_resumeQuizSuccessful
+                    .data.previousQuizzes[0].quizMeta.quizTime)))
+                .toString());
+        return ((DateTime.now().millisecondsSinceEpoch) +
+            1000 *
+                ((widget.totalQuestions * 120) -
+                    (int.parse(_resumeQuizSuccessful
+                        .data.previousQuizzes[0].quizMeta.quizTime))));
+      } else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+              content:
+              Text("You have already consumed all of the quiz time.")));
+        return ((DateTime.now().millisecondsSinceEpoch) + 1000 * 1);
+      }
+    } else {
+      print("else");
+      return ((DateTime.now().millisecondsSinceEpoch) + 1000 * 1);
+    }
+  }
+
+  Widget moreMenu() {
+    return Container(
+        width: (MediaQuery.of(context).size.width) * 0.3,
+        child: Drawer(
+            child: Container(
+              decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                      colors: <Color>[Color(0xff3F2668), Color(0xff482384)])),
+              child: ListView(
+                // Remove padding
+                  padding: EdgeInsets.zero,
+                  children: [
+                    Container(
+                      padding:
+                      EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+                      height: (MediaQuery.of(context).size.height),
+                      color: Colors.transparent,
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                            ),
+                            onTap: () => Navigator.pop(context),
+                          ),
+                          SizedBox(
+                            height:
+                            (MediaQuery.of(context).size.height) * (47 / 926),
+                          ),
+                          InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                // showDialog(
+                                //   context: context,
+                                //   builder: (BuildContext context) =>
+                                //       labValues(context),
+                                // );
+                                final result = Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => SearchListExample()),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Column(
+                                  children: [
+                                    SvgPicture.asset(
+                                      'assets/Images/lab.svg',
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (37 / 926),
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (10 / 926),
+                                    ),
+                                    Text(
+                                      'Lab Values',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize:
+                                        (MediaQuery.of(context).size.height) *
+                                            (15 / 926),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              )
+
+                            //Divider(),
+                          ),
+                          SizedBox(
+                            height:
+                            (MediaQuery.of(context).size.height) * (47 / 926),
+                          ),
+                          InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                // bookmarkQuestion
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) =>
+                                      bookmarkQuestion(context),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.bookmark,
+                                      size: 37,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (10 / 926),
+                                    ),
+                                    Text(
+                                      'Bookmarks',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize:
+                                        (MediaQuery.of(context).size.height) *
+                                            (15 / 926),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              )
+
+                            //Divider(),
+                          ),
+                          SizedBox(
+                            height:
+                            (MediaQuery.of(context).size.height) * (47 / 926),
+                          ),
+                          InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) => notes(context),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.note_rounded,
+                                      size: 37,
+                                      color: Colors.white,
+                                    ),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (10 / 926),
+                                    ),
+                                    Text(
+                                      'Notes',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize:
+                                        (MediaQuery.of(context).size.height) *
+                                            (15 / 926),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              )
+
+                            //Divider(),
+                          ),
+                          SizedBox(
+                            height:
+                            (MediaQuery.of(context).size.height) * (47 / 926),
+                          ),
+                          InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) => Calculator(),
+                                );
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Column(
+                                  children: [
+                                    SvgPicture.asset('assets/Images/calculator.svg',
+                                        height:
+                                        (MediaQuery.of(context).size.height) *
+                                            (37 / 926)),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (10 / 926),
+                                    ),
+                                    Text(
+                                      'Calculator',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize:
+                                        (MediaQuery.of(context).size.height) *
+                                            (15 / 926),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              )),
+                          SizedBox(
+                            height:
+                            (MediaQuery.of(context).size.height) * (47 / 926),
+                          ),
+                          InkWell(
+                              onTap: () {
+                                Navigator.of(context).pop();
+                                setState(() {
+                                  _showTextZoom = true;
+                                });
+                              },
+                              child: Container(
+                                alignment: Alignment.center,
+                                child: Column(
+                                  children: [
+                                    SvgPicture.asset('assets/Images/zoom.svg',
+                                        height:
+                                        (MediaQuery.of(context).size.height) *
+                                            (37 / 926)),
+                                    SizedBox(
+                                      height: (MediaQuery.of(context).size.height) *
+                                          (10 / 926),
+                                    ),
+                                    Text(
+                                      'Text Zoom',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontFamily: 'Brandon-bld',
+                                        fontSize:
+                                        (MediaQuery.of(context).size.height) *
+                                            (15 / 926),
+                                      ),
+                                    )
+                                  ],
+                                ),
+                              ))
+                        ],
+                      ),
+                    ),
+                  ]),
+            )));
   }
 
   Widget bookmarkQuestion(BuildContext context) {
     return SizedBox(
       child: AlertDialog(
-        contentPadding: EdgeInsets.all(MediaQuery.of(context).size.width*(15/428)),
+        contentPadding:
+        EdgeInsets.all(MediaQuery.of(context).size.width * (15 / 428)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,18 +1205,29 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 Text(
                   'Bookmark',
                   style: TextStyle(
-                    color: Color(0xffB0A6C2),
+                    color: Colors.grey,
                     fontFamily: 'Brandon-bld',
-                    fontSize: (MediaQuery.of(context).size.height) * (18 / 926),
+                    fontSize: (MediaQuery.of(context).size.height) * (20 / 926),
                   ),
                 ),
-                IconButton(icon:Icon(Icons.cancel),iconSize:23,color: Color(0xFF3F2668),onPressed: () {
-                  Navigator.of(context).pop();
-                },),
+                IconButton(
+                  icon: Icon(Icons.close),
+                  iconSize: 20,
+                  color: Colors.grey,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
               ],
             ),
             Divider(),
-            Text("Are you sure you want to bookmark this question",
+            Text(
+              "Are you sure you want to bookmark this question?",
+              style: TextStyle(
+                color: Colors.grey,
+                fontFamily: 'Brandon-med',
+                fontSize: (MediaQuery.of(context).size.height) * (20 / 926),
+              ),
             ),
           ],
         ),
@@ -701,7 +1242,7 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 },
                 child: Text('No',
                     style: TextStyle(
-                      color: Color(0xff3F2668),
+                      color: Color(0xff482384),
                       fontFamily: 'Brandon-bld',
                       fontSize:
                       (MediaQuery.of(context).size.height) * (21 / 926),
@@ -716,7 +1257,7 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 },
                 child: Text('Yes',
                     style: TextStyle(
-                      color: Color(0xff3F2668),
+                      color: Color(0xff482384),
                       fontFamily: 'Brandon-bld',
                       fontSize:
                       (MediaQuery.of(context).size.height) * (21 / 926),
@@ -732,7 +1273,8 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
   Widget labValues(BuildContext context) {
     return SizedBox(
       child: AlertDialog(
-        contentPadding: EdgeInsets.all(MediaQuery.of(context).size.width*(15/428)),
+        contentPadding:
+        EdgeInsets.all(MediaQuery.of(context).size.width * (15 / 428)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -748,9 +1290,14 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                     fontSize: (MediaQuery.of(context).size.height) * (18 / 926),
                   ),
                 ),
-                IconButton(icon:Icon(Icons.cancel),iconSize:23,color: Color(0xFF3F2668),onPressed: () {
-                  Navigator.of(context).pop();
-                },),
+                IconButton(
+                  icon: Icon(Icons.cancel),
+                  iconSize: 23,
+                  color: Color(0xFF3F2668),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
               ],
             ),
             Divider(),
@@ -760,247 +1307,12 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
       ),
     );
   }
-  Widget moreMenu() {
-    return Container(
-        width: (MediaQuery.of(context).size.width) * 0.3,
-        child: Drawer(
-            child: Container(
-              decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                      begin: Alignment.topRight,
-                      end: Alignment.bottomLeft,
-                      colors: <Color>[Color(0xff3F2668), Color(0xff482384)])),
-              child: ListView(
-                  // Remove padding
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Container(
-                      padding: EdgeInsets.only(
-                          top: MediaQuery.of(context).padding.top),
-                      height: (MediaQuery.of(context).size.height),
-                      color: Colors.transparent,
-                      child: Column(
-                        children: [
-                          ListTile(
-                            leading: Icon(
-                              Icons.close,
-                              color: Colors.white,
-                            ),
-                            onTap: () => Navigator.pop(context),
-                          ),
-                          SizedBox(
-                            height:
-                                (MediaQuery.of(context).size.height) * (47 / 926),
-                          ),
-                          InkWell(
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                // showDialog(
-                                //   context: context,
-                                //   builder: (BuildContext context) =>
-                                //       labValues(context),
-                                // );
-                                final result = Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (context) => SearchListExample()),
-                                );
-                              },
-                              child: Container(
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                SvgPicture.asset(
-                                  'assets/Images/lab.svg',
-                                  height: (MediaQuery.of(context).size.height) *
-                                      (37 / 926),
-                                  color: Colors.white,
-                                ),
-                                SizedBox(
-                                  height: (MediaQuery.of(context).size.height) *
-                                      (10 / 926),
-                                ),
-                                Text(
-                                  'Lab Values',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Brandon-bld',
-                                    fontSize:
-                                        (MediaQuery.of(context).size.height) *
-                                            (15 / 926),
-                                  ),
-                                )
-                              ],
-                            ),
-                          )
 
-                              //Divider(),
-                              ),
-                          SizedBox(
-                            height:
-                                (MediaQuery.of(context).size.height) * (47 / 926),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              // bookmarkQuestion
-                              showDialog(
-                                context: context,
-                                builder: (BuildContext context) =>
-                                    bookmarkQuestion(context),
-                              );
-                            },
-                              child: Container(
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.bookmark,
-                                  size: 37,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(
-                                  height: (MediaQuery.of(context).size.height) *
-                                      (10 / 926),
-                                ),
-                                Text(
-                                  'Bookmarks',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Brandon-bld',
-                                    fontSize:
-                                        (MediaQuery.of(context).size.height) *
-                                            (15 / 926),
-                                  ),
-                                )
-                              ],
-                            ),
-                          )
-
-                              //Divider(),
-                              ),
-                          SizedBox(
-                            height:
-                                (MediaQuery.of(context).size.height) * (47 / 926),
-                          ),
-                          InkWell(
-                              onTap: () {
-                                Navigator.of(context).pop();
-                                    showDialog(
-                                      context: context,
-                                      builder: (BuildContext context) =>
-                                          notes(context),
-                                    );
-                                  },
-                              child: Container(
-                                alignment: Alignment.center,
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.note_rounded,
-                                      size: 37,
-                                      color: Colors.white,
-                                    ),
-                                    SizedBox(
-                                      height:
-                                          (MediaQuery.of(context).size.height) *
-                                              (10 / 926),
-                                    ),
-                                    Text(
-                                      'Notes',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontFamily: 'Brandon-bld',
-                                        fontSize:
-                                            (MediaQuery.of(context).size.height) *
-                                                (15 / 926),
-                                      ),
-                                    )
-                                  ],
-                                ),
-                              )
-
-                              //Divider(),
-                              ),
-                          SizedBox(
-                            height:
-                                (MediaQuery.of(context).size.height) * (47 / 926),
-                          ),
-                          InkWell(
-                            onTap:()  {Navigator.of(context).pop();
-                            showDialog(
-                            context: context,
-                            builder: (BuildContext context) =>
-                                Calculator(),
-                          );},
-                              child: Container(
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                SvgPicture.asset('assets/Images/calculator.svg',
-                                    height: (MediaQuery.of(context).size.height) *
-                                        (37 / 926)),
-                                SizedBox(
-                                  height: (MediaQuery.of(context).size.height) *
-                                      (10 / 926),
-                                ),
-                                Text(
-                                  'Calculator',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Brandon-bld',
-                                    fontSize:
-                                        (MediaQuery.of(context).size.height) *
-                                            (15 / 926),
-                                  ),
-                                )
-                              ],
-                            ),
-                          )),
-                          SizedBox(
-                            height:
-                                (MediaQuery.of(context).size.height) * (47 / 926),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              Navigator.of(context).pop();
-                              setState(() {
-                                _showTextZoom = true;
-                              });
-                            },
-                              child: Container(
-                            alignment: Alignment.center,
-                            child: Column(
-                              children: [
-                                SvgPicture.asset('assets/Images/zoom.svg',
-                                    height: (MediaQuery.of(context).size.height) *
-                                        (37 / 926)),
-                                SizedBox(
-                                  height: (MediaQuery.of(context).size.height) *
-                                      (10 / 926),
-                                ),
-                                Text(
-                                  'Text Zoom',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontFamily: 'Brandon-bld',
-                                    fontSize:
-                                        (MediaQuery.of(context).size.height) *
-                                            (15 / 926),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ))
-                        ],
-                      ),
-                    ),
-                  ]),
-            )));
-  }
   Widget notes(BuildContext context) {
     return SizedBox(
       child: AlertDialog(
-        contentPadding: EdgeInsets.all(MediaQuery.of(context).size.width*(15/428)),
+        contentPadding:
+        EdgeInsets.all(MediaQuery.of(context).size.width * (15 / 428)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1011,27 +1323,34 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 Text(
                   'Take Notes',
                   style: TextStyle(
-                    color: Color(0xffB0A6C2),
+                    color: Colors.grey,
                     fontFamily: 'Brandon-bld',
-                    fontSize: (MediaQuery.of(context).size.height) * (18 / 926),
+                    fontSize: (MediaQuery.of(context).size.height) * (20 / 926),
                   ),
                 ),
-                IconButton(icon:Icon(Icons.cancel),iconSize:23,color: Color(0xFF3F2668),onPressed: () {
-                  Navigator.of(context).pop();
-                },),
+                IconButton(
+                  icon: Icon(Icons.close),
+                  iconSize: 25,
+                  color: Colors.grey,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
               ],
             ),
             Divider(),
             TextField(
               controller: _textController,
               keyboardType: TextInputType.multiline,
-              minLines: 1,//Normal textInputField will be displayed
-              maxLines: 5,// when user presses enter it will adapt to it
+              //minLines: 2,//Normal textInputField will be displayed
+              maxLines: 5, // when user presses enter it will adapt to it
               decoration: InputDecoration(
                 hintText: "Add notes here...",
-                hintStyle: TextStyle(color: Color(0xffAEAEAE),
-                  fontSize: (MediaQuery.of(context).size.height)*(15/926),
-                  fontFamily: 'Brandon-med',),
+                hintStyle: TextStyle(
+                  color: Colors.grey,
+                  fontSize: (MediaQuery.of(context).size.height) * (16 / 926),
+                  fontFamily: 'Brandon-med',
+                ),
                 contentPadding: EdgeInsets.fromLTRB(2.0, 1, 2.0, 1),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(
@@ -1041,8 +1360,8 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 ),
               ),
               style: TextStyle(
-                color: Colors.black,
-                fontSize: (MediaQuery.of(context).size.height)*(15/926),
+                color: Colors.grey,
+                fontSize: (MediaQuery.of(context).size.height) * (16 / 926),
                 fontFamily: 'Brandon-med',
               ),
               onChanged: (String value) {
@@ -1051,98 +1370,175 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                 });
               },
             ),
+            SizedBox(
+              height: MediaQuery.of(context).size.height * 15 / 926,
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(onPressed:(){
-                  setState((){
-                    _note='';
-                    _textController.clear();
-                  }
-                  );
-                } , iconSize: 21 ,icon: Icon(Icons.refresh,color: Color(0xFF3F2668))),
-                TextButton(
-                  onPressed: () {
-                    addNotesAPI();
-                    _textController.clear();
-                    Navigator.of(context).pop();
-                  },
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,),
+                InkWell(
                   child: Container(
-                  height: (MediaQuery.of(context).size.height) * (31 / 926),
-                  width:(MediaQuery.of(context).size.width) * (97 / 428),
-                  decoration: BoxDecoration(borderRadius:BorderRadius.circular(4),color: Color(0xFFDDDAE2),),
-                  child:Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children:[
-                    Icon(Icons.save,color: Color(0xFF3F2668),),
-                      SizedBox(
-                        height: (MediaQuery.of(context).size.width) *
-                            (14 / 428),
-                      ),
-                    Text(
-                        'Save',
-                        style: TextStyle(
-                          color: Color(0xff3F2668),
-                          fontFamily: 'Brandon-bld',
-                          fontSize: (MediaQuery.of(context).size.height) * (19 / 926),
+                    margin: EdgeInsets.symmetric(
+                        horizontal:
+                        (MediaQuery.of(context).size.width) * (25 / 428)),
+                    height: (MediaQuery.of(context).size.height) * (35 / 926),
+                    width: (MediaQuery.of(context).size.width) * (100 / 428),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                          (MediaQuery.of(context).size.height) * (8 / 926)),
+                    ),
+                    child: TextButton(
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero,),
+                      onPressed: () {
+                        setState(() {
+                          _note = '';
+                          _textController.clear();
+                        });
+                      },
+                      child: Center(
+                        child: Text(
+                          "Refresh",
+                          style: TextStyle(
+                            color: Color(0xff482384),
+                            fontFamily: 'Brandon-med',
+                            fontSize: (MediaQuery.of(context).size.height) *
+                                (20 / 926),
+                          ),
                         ),
                       ),
-                  ])
-                ),)
+                    ),
+                  ),
+                ),
+                InkWell(
+                  child: Container(
+                    margin: EdgeInsets.symmetric(
+                        horizontal:
+                        (MediaQuery.of(context).size.width) * (25 / 428)),
+                    height: (MediaQuery.of(context).size.height) * (35 / 926),
+                    width: (MediaQuery.of(context).size.width) * (100 / 428),
+                    decoration: BoxDecoration(
+
+                      borderRadius: BorderRadius.circular(
+                          (MediaQuery.of(context).size.height) * (8 / 926)),
+                    ),
+                    child: TextButton(
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero,),
+                      onPressed: () {
+                        addNotesAPI();
+                        _textController.clear();
+                        Navigator.of(context).pop();
+                      },
+                      child: Center(
+                        child: Text(
+                          "Save",
+                          style: TextStyle(
+                            color: Color(0xff482384),
+                            fontFamily: 'Brandon-med',
+                            fontSize: (MediaQuery.of(context).size.height) *
+                                (20 / 926),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ],
-            )
+            ),
           ],
         ),
-      ),);}
+      ),
+    );
+  }
+
+  _onQuitReviewed() async {
+    return (await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(
+          'Are you sure you want to go back?',
+          style: TextStyle(
+            color: Colors.grey,
+            fontFamily: 'Brandon-med',
+            fontSize: (MediaQuery.of(context).size.height) * (18 / 926),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+            },
+            child: Text('No',
+                style: TextStyle(
+                  color: Color(0xff482384),
+                  fontFamily: 'Brandon-bld',
+                  fontSize:
+                  (MediaQuery.of(context).size.height) * (21 / 926),
+                )),
+          ),
+          TextButton(
+            onPressed: () async {
+              // await SaveQuizAPI("completed", true);
+              Navigator.of(context)
+                  .popUntil(ModalRoute.withName("/home"));
+              // final result1 = Navigator.push(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => PreviousQuiz()),
+              // );
+            },
+            child: Text('Yes',
+                style: TextStyle(
+                  color: Color(0xff482384),
+                  fontFamily: 'Brandon-bld',
+                  fontSize:
+                  (MediaQuery.of(context).size.height) * (21 / 926),
+                )),
+          ),
+        ],
+      ),
+    )) ??
+        false;
+  }
+
   Future<bool> _onQuit() async {
     return (await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            content: Text(
-              'Mark Quiz as',
-              style: TextStyle(
-                color: Color(0xffA1A1A1),
-                fontFamily: 'Brandon-bld',
-                fontSize: (MediaQuery.of(context).size.height) * (21 / 926),
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                onPressed: () async {
-                  await SaveQuizAPI("suspended", true);
-                  // ScaffoldMessenger.of(context)
-                  //   ..removeCurrentSnackBar()
-                  //   ..showSnackBar(SnackBar(content: Text("The Quiz has been saved as Suspended!")));
-                  // Navigator.of(context).pop();
-                  // Navigator.of(context).pop();
-                },
-                child: Text('Suspended',
-                    style: TextStyle(
-                      color: Color(0xff3F2668),
-                      fontFamily: 'Brandon-bld',
-                      fontSize:
-                      (MediaQuery.of(context).size.height) * (21 / 926),
-                    )),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await SaveQuizAPI("completed", true);
-                  // Navigator.of(context).pop();
-                  // Navigator.of(context).pop(); // Uncomment when "completed" and omittedQuestionsArray work again.
-                  },
-                child: Text('Completed',
-                    style: TextStyle(
-                      color: Color(0xff3F2668),
-                      fontFamily: 'Brandon-bld',
-                      fontSize:
-                          (MediaQuery.of(context).size.height) * (21 / 926),
-                    )),
-              ),
-            ],
+      context: context,
+      builder: (context) => AlertDialog(
+        content: Text(
+          'Mark Quiz as',
+          style: TextStyle(
+            color: Colors.grey,
+            fontFamily: 'Brandon-med',
+            fontSize: (MediaQuery.of(context).size.height) * (18 / 926),
           ),
-        )) ??
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () async {
+              await SaveQuizAPI("suspended", true);
+            },
+            child: Text('Suspended',
+                style: TextStyle(
+                  color: Color(0xff482384),
+                  fontFamily: 'Brandon-bld',
+                  fontSize:
+                  (MediaQuery.of(context).size.height) * (21 / 926),
+                )),
+          ),
+          TextButton(
+            onPressed: () async {
+              await SaveQuizAPI("completed", true);
+            },
+            child: Text('Completed',
+                style: TextStyle(
+                  color: Color(0xff482384),
+                  fontFamily: 'Brandon-bld',
+                  fontSize:
+                  (MediaQuery.of(context).size.height) * (21 / 926),
+                )),
+          ),
+        ],
+      ),
+    )) ??
         false;
   }
 
@@ -1155,14 +1551,36 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
     super.dispose();
   }
 
+
   @override
   Widget build(BuildContext context) {
+    Future.delayed(Duration(seconds: 1), () {
+      if (questionsData['eachQuestionTimer']!.length > 0) {
+        if ((questionsData['eachQuestionTimer'] != null) &
+        (questionsData['eachQuestionTimer'] != [])) {
+          questionsData['eachQuestionTimer']![questionNumber] =
+              questionsData['eachQuestionTimer']![questionNumber] + 1;
+          // print("eachQuestionTimer " + questionsData['eachQuestionTimer'].toString());
+        }
+      }
+    });
     return WillPopScope(
       onWillPop: () async {
         // ScaffoldMessenger.of(context)
         //   ..removeCurrentSnackBar()
         //   ..showSnackBar(SnackBar(content: Text("Click on Quit Quiz!")));
-        return true;
+        if(widget.whatsDone == "resumed") {
+          if(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus == "completed") {
+            _onQuitReviewed();
+          }
+          else if(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus == "suspended") {
+            _onQuit();
+          }
+        }
+        else if(widget.whatsDone == "new") {
+          _onQuit();
+        }
+        return false;
       },
       child: Scaffold(
         resizeToAvoidBottomInset: false,
@@ -1297,7 +1715,7 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                   width: (MediaQuery.of(context).size.width) * (39 / 428),
                                 ),
                                 // for timer
-                                Container(
+                                hasDataLoaded == false ? Container() : Container(
                                   height: (MediaQuery.of(context).size.height) * (25 / 926),
                                   width: (MediaQuery.of(context).size.width) * (87 / 428),
                                   color: Color(0xFF3F2668),
@@ -1318,6 +1736,7 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                           fontSize: (MediaQuery.of(context).size.height) *
                                               (13 / 926),
                                         ),
+                                        // widget.whatsDone == "new" ? (widget.totalQuestions * 120) : widget.whatsDone == "resumed" ? ((int.parse(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTime) <= (widget.totalQuestions * 120)) ? ((widget.totalQuestions * 120) - (int.parse(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizTime))) : 1) : 1, // endTime,
                                         endTime: endTime,
                                         onEnd: onEnd,
                                         endWidget: Text(
@@ -1332,7 +1751,7 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                       ),
                                     ],
                                   ),
-                                )
+                                ),
                               ],
                             ),
                             SizedBox(
@@ -1357,42 +1776,172 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                 TextButton(
                                   onPressed: () {
                                     // print("i: " + i.toString());
-                                    if(questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") {
-                                      int? indexOfOptionThatIsActuallyCorrect;
-                                      int? correct;
-                                      // whichOption = i; optionSelectedInt
-                                      setState(() {
-                                        questionsData["optionSelectedInt"]![questionNumber] = i;
-                                      });
-                                      int j = 0;
-                                      for(j = 0; j<10; j++) {
-                                        if(questionsData["options"]![questionNumber][i].toString() == questionsData["options"]![questionNumber][j].toString()) {
-                                          break;
+
+                                    if(widget.whatsDone ==
+                                        "new") {
+                                      if (questionsData[
+                                      "answeredCorrectly"]![
+                                      questionNumber] ==
+                                          "notAnswered") {
+                                        int?
+                                        indexOfOptionThatIsActuallyCorrect;
+                                        int? correct;
+                                        // whichOption = i; optionSelectedInt
+                                        setState(() {
+                                          questionsData[
+                                          "optionSelectedInt"]![
+                                          questionNumber] = i;
+                                        });
+                                        int j = 0;
+                                        for (j = 0;
+                                        j < 10;
+                                        j++) {
+                                          if (questionsData["options"]![
+                                          questionNumber]
+                                          [i]
+                                              .toString() ==
+                                              questionsData[
+                                              "options"]![
+                                              questionNumber][j]
+                                                  .toString()) {
+                                            break;
+                                          }
+                                        }
+                                        if (questionsData[
+                                        "statistics"]![
+                                        questionNumber][j] ==
+                                            1) {
+                                          setState(() {
+                                            questionsData[
+                                            "answeredCorrectly"]![
+                                            questionNumber] =
+                                            "correct";
+                                          });
+                                          correct = 1;
+                                          // print("correct: " + correct.toString());
+                                          // print(questionsData["answeredCorrectly"]);
+                                        } else if (questionsData[
+                                        "statistics"]![
+                                        questionNumber][j] ==
+                                            0) {
+                                          setState(() {
+                                            questionsData[
+                                            "answeredCorrectly"]![
+                                            questionNumber] =
+                                            "incorrect";
+                                          });
+                                          correct = 0;
+                                          // print(questionsData["answeredCorrectly"]);
+                                        }
+                                        for (int c = 0;
+                                        c <
+                                            questionsData[
+                                            "statistics"]![
+                                            questionNumber]
+                                                .length;
+                                        c++) {
+                                          if (questionsData[
+                                          "statistics"]![
+                                          questionNumber][c] ==
+                                              1) {
+                                            indexOfOptionThatIsActuallyCorrect =
+                                                c;
+                                            // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+                                            break;
+                                          }
+                                        }
+                                        submitAnswerAPI(
+                                            indexOfOptionThatIsActuallyCorrect,
+                                            correct,
+                                            i);
+                                      }
+                                    }
+                                    else if(widget.whatsDone == "resumed") {
+                                      if((_resumeQuizSuccessful
+                                          .data
+                                          .previousQuizzes[
+                                      0]
+                                          .quizMeta
+                                          .quizStatus
+                                          .toString() ==
+                                          "suspended")) {
+                                        if (questionsData[
+                                        "answeredCorrectly"]![
+                                        questionNumber] ==
+                                            "notAnswered") {
+                                          int?
+                                          indexOfOptionThatIsActuallyCorrect;
+                                          int? correct;
+                                          // whichOption = i; optionSelectedInt
+                                          setState(() {
+                                            questionsData[
+                                            "optionSelectedInt"]![
+                                            questionNumber] = i;
+                                          });
+                                          int j = 0;
+                                          for (j = 0;
+                                          j < 10;
+                                          j++) {
+                                            if (questionsData["options"]![
+                                            questionNumber]
+                                            [i]
+                                                .toString() ==
+                                                questionsData[
+                                                "options"]![
+                                                questionNumber][j]
+                                                    .toString()) {
+                                              break;
+                                            }
+                                          }
+                                          if (questionsData[
+                                          "statistics"]![
+                                          questionNumber][j] ==
+                                              1) {
+                                            setState(() {
+                                              questionsData[
+                                              "answeredCorrectly"]![
+                                              questionNumber] =
+                                              "correct";
+                                            });
+                                            correct = 1;
+                                            // print("correct: " + correct.toString());
+                                            // print(questionsData["answeredCorrectly"]);
+                                          } else if (questionsData[
+                                          "statistics"]![
+                                          questionNumber][j] ==
+                                              0) {
+                                            setState(() {
+                                              questionsData[
+                                              "answeredCorrectly"]![
+                                              questionNumber] =
+                                              "incorrect";
+                                            });
+                                            correct = 0;
+                                            // print(questionsData["answeredCorrectly"]);
+                                          }
+                                          for (int c = 0;
+                                          c <
+                                              questionsData[
+                                              "statistics"]![
+                                              questionNumber]
+                                                  .length;
+                                          c++) {
+                                            if (questionsData[
+                                            "statistics"]![
+                                            questionNumber][c] ==
+                                                1) {
+                                              indexOfOptionThatIsActuallyCorrect =
+                                                  c;
+                                              // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+                                              break;
+                                            }
+                                          }
+                                          submitAnswerAPI(
+                                              indexOfOptionThatIsActuallyCorrect,
+                                              correct,
+                                              i);
                                         }
                                       }
-                                      if(questionsData["statistics"]![questionNumber][j] == 1) {
-                                        setState(() {
-                                          questionsData["answeredCorrectly"]![questionNumber] = "correct";
-                                        });
-                                        correct = 1;
-                                        // print("correct: " + correct.toString());
-                                        // print(questionsData["answeredCorrectly"]);
-                                      }
-                                      else if(questionsData["statistics"]![questionNumber][j] == 0) {
-                                        setState(() {
-                                          questionsData["answeredCorrectly"]![questionNumber] = "incorrect";
-                                        });
-                                        correct = 0;
-                                        // print(questionsData["answeredCorrectly"]);
-                                      }
-                                      for(int c = 0; c<questionsData["statistics"]![questionNumber].length; c++) {
-                                        if(questionsData["statistics"]![questionNumber][c] == 1) {
-                                          indexOfOptionThatIsActuallyCorrect = c;
-                                          // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
-                                          break;
-                                        }
-                                      }
-                                      submitAnswerAPI(indexOfOptionThatIsActuallyCorrect, correct, i);
                                     }
                                   },
                                   style: TextButton.styleFrom(
@@ -1517,54 +2066,220 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                   children: [
                                     TextButton(
                                       onPressed: () {
-                                        // print("i: " + i.toString());
-                                        // if(questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") {
-                                        if((questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") || (questionsData["answeredCorrectly"]![questionNumber] != "notAnswered")) {
-                                          int? indexOfOptionThatIsActuallyCorrect;
-                                          int? correct;
-                                          // whichOption = i; optionSelectedInt
-                                          setState(() {
-                                            questionsData["optionSelectedInt"]![questionNumber] = i;
-                                          });
-                                          int j = 0;
-                                          for(j = 0; j<10; j++) {
-                                            if(questionsData["options"]![questionNumber][i].toString() == questionsData["options"]![questionNumber][j].toString()) {
-                                              break;
+                                        if (widget.whatsDone ==
+                                            "new") {
+                                          // print("i: " + i.toString());
+                                          // if(questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") {
+                                          if ((questionsData[
+                                          "answeredCorrectly"]![
+                                          questionNumber] ==
+                                              "notAnswered") ||
+                                              (questionsData[
+                                              "answeredCorrectly"]![
+                                              questionNumber] !=
+                                                  "notAnswered")) {
+                                            int?
+                                            indexOfOptionThatIsActuallyCorrect;
+                                            int? correct;
+                                            // whichOption = i; optionSelectedInt
+                                            setState(() {
+                                              questionsData[
+                                              "optionSelectedInt"]![
+                                              questionNumber] = i;
+                                            });
+                                            int j = 0;
+                                            for (j = 0;
+                                            j < 10;
+                                            j++) {
+                                              if (questionsData["options"]![
+                                              questionNumber]
+                                              [i]
+                                                  .toString() ==
+                                                  questionsData[
+                                                  "options"]![
+                                                  questionNumber][j]
+                                                      .toString()) {
+                                                break;
+                                              }
+                                            }
+                                            if (questionsData[
+                                            "statistics"]![
+                                            questionNumber][j] ==
+                                                1) {
+                                              setState(() {
+                                                questionsData[
+                                                "answeredCorrectly"]![
+                                                questionNumber] =
+                                                "correct";
+                                              });
+                                              correct = 1;
+                                              // print("correct: " + correct.toString());
+                                              // print(questionsData["answeredCorrectly"]);
+                                            } else if (questionsData[
+                                            "statistics"]![
+                                            questionNumber][j] ==
+                                                0) {
+                                              setState(() {
+                                                questionsData[
+                                                "answeredCorrectly"]![
+                                                questionNumber] =
+                                                "incorrect";
+                                              });
+                                              correct = 0;
+                                              // print(questionsData["answeredCorrectly"]);
+                                            }
+                                            for (int c = 0;
+                                            c <
+                                                questionsData["statistics"]![
+                                                questionNumber]
+                                                    .length;
+                                            c++) {
+                                              if (questionsData[
+                                              "statistics"]![
+                                              questionNumber][c] ==
+                                                  1) {
+                                                indexOfOptionThatIsActuallyCorrect =
+                                                    c;
+                                                // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+                                                break;
+                                              }
+                                            }
+                                            print(questionsData[
+                                            "answeredCorrectly"]);
+                                            var addToSelectedOptionsArrayExam =
+                                            {
+                                              "index": questionsData[
+                                              "id"]![
+                                              questionNumber]
+                                                  .toString(),
+                                              "Correctanswerindex":
+                                              indexOfOptionThatIsActuallyCorrect
+                                                  .toString(), // indexOfOptionThatIsActuallyCorrect
+                                              "correct": correct, // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+                                              "optionIndexSelected":
+                                              i.toString(),
+                                              "time": questionsData[
+                                              "eachQuestionTimer"]![
+                                              questionNumber]
+                                                  .toString()
+                                            };
+                                            setState(() {
+                                              questionsData["SelectedOptionsArray"]![questionNumber] =
+                                                  addToSelectedOptionsArrayExam;
+                                            });
+                                            // submitAnswerAPI(indexOfOptionThatIsActuallyCorrect, correct, i);
+                                          }
+                                        } else if (widget
+                                            .whatsDone ==
+                                            "resumed") {
+                                          if (_resumeQuizSuccessful
+                                              .data
+                                              .previousQuizzes[
+                                          0]
+                                              .quizMeta
+                                              .quizStatus
+                                              .toString() ==
+                                              "suspended") {
+                                            // print("i: " + i.toString());
+                                            // if(questionsData["answeredCorrectly"]![questionNumber] == "notAnswered") {
+                                            if ((questionsData[
+                                            "answeredCorrectly"]![
+                                            questionNumber] ==
+                                                "notAnswered") ||
+                                                (questionsData[
+                                                "answeredCorrectly"]![
+                                                questionNumber] !=
+                                                    "notAnswered")) {
+                                              int?
+                                              indexOfOptionThatIsActuallyCorrect;
+                                              int? correct;
+                                              // whichOption = i; optionSelectedInt
+                                              setState(() {
+                                                questionsData[
+                                                "optionSelectedInt"]![
+                                                questionNumber] = i;
+                                              });
+                                              int j = 0;
+                                              for (j = 0;
+                                              j < 10;
+                                              j++) {
+                                                if (questionsData["options"]![questionNumber]
+                                                [i]
+                                                    .toString() ==
+                                                    questionsData["options"]![
+                                                    questionNumber][j]
+                                                        .toString()) {
+                                                  break;
+                                                }
+                                              }
+                                              if (questionsData[
+                                              "statistics"]![
+                                              questionNumber][j] ==
+                                                  1) {
+                                                setState(() {
+                                                  questionsData[
+                                                  "answeredCorrectly"]![
+                                                  questionNumber] =
+                                                  "correct";
+                                                });
+                                                correct = 1;
+                                                // print("correct: " + correct.toString());
+                                                // print(questionsData["answeredCorrectly"]);
+                                              } else if (questionsData[
+                                              "statistics"]![
+                                              questionNumber][j] ==
+                                                  0) {
+                                                setState(() {
+                                                  questionsData[
+                                                  "answeredCorrectly"]![
+                                                  questionNumber] =
+                                                  "incorrect";
+                                                });
+                                                correct = 0;
+                                                // print(questionsData["answeredCorrectly"]);
+                                              }
+                                              for (int c = 0;
+                                              c <
+                                                  questionsData["statistics"]![
+                                                  questionNumber]
+                                                      .length;
+                                              c++) {
+                                                if (questionsData[
+                                                "statistics"]![
+                                                questionNumber][c] ==
+                                                    1) {
+                                                  indexOfOptionThatIsActuallyCorrect =
+                                                      c;
+                                                  // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
+                                                  break;
+                                                }
+                                              }
+                                              print(questionsData[
+                                              "answeredCorrectly"]);
+                                              var addToSelectedOptionsArrayExam =
+                                              {
+                                                "index": questionsData[
+                                                "id"]![
+                                                questionNumber]
+                                                    .toString(),
+                                                "Correctanswerindex":
+                                                indexOfOptionThatIsActuallyCorrect
+                                                    .toString(), // indexOfOptionThatIsActuallyCorrect
+                                                "correct": correct, // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
+                                                "optionIndexSelected":
+                                                i.toString(),
+                                                "time": questionsData[
+                                                "eachQuestionTimer"]![
+                                                questionNumber]
+                                                    .toString()
+                                              };
+                                              setState(() {
+                                                questionsData["SelectedOptionsArray"]![questionNumber] =
+                                                    addToSelectedOptionsArrayExam;
+                                              });
+                                              // submitAnswerAPI(indexOfOptionThatIsActuallyCorrect, correct, i);
                                             }
                                           }
-                                          if(questionsData["statistics"]![questionNumber][j] == 1) {
-                                            setState(() {
-                                              questionsData["answeredCorrectly"]![questionNumber] = "correct";
-                                            });
-                                            correct = 1;
-                                            // print("correct: " + correct.toString());
-                                            // print(questionsData["answeredCorrectly"]);
-                                          }
-                                          else if(questionsData["statistics"]![questionNumber][j] == 0) {
-                                            setState(() {
-                                              questionsData["answeredCorrectly"]![questionNumber] = "incorrect";
-                                            });
-                                            correct = 0;
-                                            // print(questionsData["answeredCorrectly"]);
-                                          }
-                                          for(int c = 0; c<questionsData["statistics"]![questionNumber].length; c++) {
-                                            if(questionsData["statistics"]![questionNumber][c] == 1) {
-                                              indexOfOptionThatIsActuallyCorrect = c;
-                                              // print("indexOfOptionThatIsActuallyCorrect: " + indexOfOptionThatIsActuallyCorrect.toString());
-                                              break;
-                                            }
-                                          }
-                                          print(questionsData["answeredCorrectly"]);
-                                          addToSelectedOptionsArray = {
-                                            "index": questionsData["id"]![questionNumber].toString(),
-                                            "Correctanswerindex": indexOfOptionThatIsActuallyCorrect.toString(), // indexOfOptionThatIsActuallyCorrect
-                                            "correct": correct.toString(), // Correct = 1 if answer is correct, -1 if answer is omitted and 0 if answer is incorrect
-                                            "optionIndexSelected": i.toString()
-                                          };
-                                          setState(() {
-                                            questionsData["SelectedOptionsArray"]![questionNumber] = addToSelectedOptionsArray;
-                                          });
-                                          // submitAnswerAPI(indexOfOptionThatIsActuallyCorrect, correct, i);
                                         }
                                       },
                                       style: TextButton.styleFrom(
@@ -1715,7 +2430,19 @@ class _QuizModuleState extends State<QuizModule> with WidgetsBindingObserver{
                                                 (13 / 926), //38,
                                           ),
                                         ),
-                                        onTap: () => _onQuit())),
+                                        onTap: () {
+                                          if(widget.whatsDone == "resumed") { //
+                                            if(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus == "completed") {
+                                              _onQuitReviewed();
+                                            }
+                                            else if(_resumeQuizSuccessful.data.previousQuizzes[0].quizMeta.quizStatus == "suspended") {
+                                              _onQuit();
+                                            }
+                                          }
+                                          else if(widget.whatsDone == "new") {
+                                            _onQuit();
+                                          }
+                                        })),
                               ],
                             ),
                             SizedBox(

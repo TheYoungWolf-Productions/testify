@@ -73,7 +73,27 @@ class _NotesState extends State<Notes> {
         );
       }
     }
-    );
+    ).catchError((error){
+      setState(() {
+        _hasNotesDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   categorizeNotesData() {
@@ -92,13 +112,13 @@ class _NotesState extends State<Notes> {
         _notesData["user_id"]!.add(_notesSuccessful.data.notes[c].userId);
         _notesData["quiz_id"]!.add(_notesSuccessful.data.notes[c].quizId);
         _notesData["notes"]!.add(_notesSuccessful.data.notes[c].notes);
-        notesMetaString = _notesSuccessful.data.notes[c].noteMeta;
-        notesMetaString = notesMetaString.replaceAll("\\", "");
-        decodeNotesMetaString = jsonDecode(notesMetaString);
-        noteMetaEntry["noteTopic"] = decodeNotesMetaString["noteTopic"];
-        noteMetaEntry["noteSystem"] = decodeNotesMetaString["noteSystem"];
-        noteMetaEntry["noteSubject"] = decodeNotesMetaString["noteSubject"];
-        _notesData["note_meta"]!.add(noteMetaEntry);
+        // notesMetaString = _notesSuccessful.data.notes[c].noteMeta;
+        // notesMetaString = notesMetaString.replaceAll("\\", "");
+        // decodeNotesMetaString = jsonDecode(notesMetaString);
+        // noteMetaEntry["noteTopic"] = decodeNotesMetaString["noteTopic"];
+        // noteMetaEntry["noteSystem"] = decodeNotesMetaString["noteSystem"];
+        // noteMetaEntry["noteSubject"] = decodeNotesMetaString["noteSubject"];
+        // _notesData["note_meta"]!.add(noteMetaEntry);
       });
       c++;
     }
@@ -198,10 +218,21 @@ class _NotesState extends State<Notes> {
             SizedBox(height: (MediaQuery.of(context).size.height)*(30/926),),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Column(
+              child: _hasNotesDataLoaded == false ? CircularProgressIndicator(color: Color(0xFF3F2668)) : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _hasNotesDataLoaded == false ? CircularProgressIndicator(color: Color(0xFF3F2668)) :
+                  if(_notesData["idpsas_user_notes"]!.length <= 0)
+                    Container(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Text("No Notes Available!",
+                          style: TextStyle(
+                            color: Color(0xffAEAEAE),
+                            fontFamily: 'Brandon-bld',
+                            fontSize: (MediaQuery.of(context).size.height) *(15/926),//38,
+                          ),),
+                      ),
+                    ),
                   GridView.count(shrinkWrap:true,crossAxisCount: 2,crossAxisSpacing:(MediaQuery.of(context).size.width) *(68/428) ,mainAxisSpacing: (MediaQuery.of(context).size.height) *(41/926),childAspectRatio: 1,children: [
                     for(int i = 0; i<_notesData["idpsas_user_notes"]!.length; i++)
                       NotesTile(noteId: _notesData["idpsas_user_notes"]![i], noteText: _notesData["notes"]![i]),

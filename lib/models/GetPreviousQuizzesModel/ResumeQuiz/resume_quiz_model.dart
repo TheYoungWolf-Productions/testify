@@ -1,6 +1,3 @@
-// To parse this JSON data, do
-//
-//     final resumeQuizModel = resumeQuizModelFromJson(jsonString);
 
 import 'dart:convert';
 
@@ -162,18 +159,21 @@ class SelectedOptionsArray {
     this.correctanswerindex,
     this.correct,
     this.optionIndexSelected,
+    this.time
   });
 
   dynamic index;
   dynamic correctanswerindex;
   dynamic correct;
   dynamic optionIndexSelected;
+  dynamic time;
 
   factory SelectedOptionsArray.fromJson(Map<String, dynamic> json) => SelectedOptionsArray(
     index: json["index"] == null ? null : json["index"],
     correctanswerindex: json["Correctanswerindex"] == null ? null : json["Correctanswerindex"],
     correct: json["correct"] == null ? null : json["correct"],
     optionIndexSelected: json["optionIndexSelected"] == null ? null : json["optionIndexSelected"],
+    time: json["time"] == null ? null : json["time"],
   );
 
   Map<String, dynamic> toJson() => {
@@ -244,7 +244,7 @@ class Question {
     "correct_msg": correctMsg,
     "answer_type": answerType,
     "postId": postId,
-    "user_id": userId == null ? null : userId,
+    "user_id": userId ?? null,
     "submitData": submitData == null ? null : submitData,
     "notes": notes,
     "questionId": questionId,

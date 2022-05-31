@@ -27,16 +27,22 @@ class _LoginState extends State<Login> {
   bool _isChecked = false;
   //To start animation
   bool _loaded = false;
-  var _duration = const Duration(milliseconds: 450);
+  final _duration = const Duration(milliseconds: 450);
   var _dataPreviouslyStored = false;
   late UserModelSuccessfulLogin _successfulUser;
   late UserModelUnsuccessfulLogin _unsuccessfulUser;
+  // var _successfulUser;
+  // var _unsuccessfulUser;
   var _invalidUsername = false;
   var _invalidPassword = false;
   bool _isLoggingIn = false; // To start and finish CircularProgress Indicator
 
   //The data gets stored to local storage. Continue from there.
-  AuthStorage storage = new AuthStorage();
+  AuthStorage storage = AuthStorage();
+
+  //Controllers
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -44,37 +50,35 @@ class _LoginState extends State<Login> {
     //To delete the auth file when the user logs out.
     if(widget.fromWhere == "Home") {
       storage.deleteFile();
-      print("Deleted + :" + storage.readAuth().toString());
       setState(() {
         _email = "";
         _password = "";
         _isChecked = false;
         _dataPreviouslyStored = false;
+        _emailController.text = "";
+        _passwordController.text = "";
       });
     }
     else {
       storage.readAuth().then((value) {
-        if(value.length != 0) {
+        if(value.isNotEmpty) {
           var temp = value.split(" ");
-          print(temp);
           setState(() {
             _email = temp[0];
             _password = temp[1];
             _dataPreviouslyStored = true;
+            _emailController.text = temp[0];
+            _passwordController.text = temp[1];
           });
-          print("Email + Password: " + _email + _password);
+
         }
         else {
 
         }
       });
     }
-    // Future.delayed(Duration(milliseconds: 1), () {
-    //   setState(() {
-    //     _loaded = true;
-    //   });
-    // });
-    Future.delayed(Duration(microseconds: 0), () {
+
+    Future.delayed(const Duration(microseconds: 0), () {
       setState(() {
         _loaded = true;
       });
@@ -87,19 +91,23 @@ class _LoginState extends State<Login> {
       _isLoggingIn = true;
     });
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String apiUrl = "https://demo.pookidevs.com/auth/login";
+    const String apiUrl = "https://demo.pookidevs.com/auth/login";
     http.post(Uri.parse(apiUrl), headers: <String, String>{
       'Content-type': 'application/json; charset=UTF-8',
     }, body: json.encode(
         {
-            "user":
-            {
-              "user_email": email,
-              "user_pass": password
-            }
+          "user":
+          {
+            "user_email": email,
+            "user_pass": password
+          }
         })
     ).then((response) {
+      // print(json.decode(response.body).toString());
       if(response.statusCode == 200) {
+        setState(() {
+          _isLoggingIn = false;
+        });
         //The entered credentials are correct.
         if(json.decode(response.body).toString().substring(0,20) == "{data: {status: true") {
           final responseString = (response.body);
@@ -113,7 +121,6 @@ class _LoginState extends State<Login> {
           prefs.setString('token', _successfulUser.data.token);
           prefs.setInt("userId", _successfulUser.data.id);
           _navigateAndDisplaySelection(context);
-          print(_successfulUser.data.status);
         }
         //Credentials are incorrect
         else if(json.decode(response.body).toString().substring(0,21) == "{data: {status: false") {
@@ -122,14 +129,13 @@ class _LoginState extends State<Login> {
           final UserModelUnsuccessfulLogin unsuccessfulUser = loginData;
           setState(() {
             _unsuccessfulUser = unsuccessfulUser;
+            _isLoggingIn = false;
           });
-          print(_unsuccessfulUser.data.status);
           ScaffoldMessenger.of(context)
             ..removeCurrentSnackBar()
             ..showSnackBar(SnackBar(content: Text(_unsuccessfulUser.data.message)));
-          _navigateAndDisplaySelection(context);
+          // _navigateAndDisplaySelection(context);
           var splitMessage = (_unsuccessfulUser.data.message).split(" ");
-          print(splitMessage);
           if(splitMessage.length == 4) {
             setState(() {
               _invalidPassword = true;
@@ -138,13 +144,40 @@ class _LoginState extends State<Login> {
           }
           else if(splitMessage.length == 2) {
             setState(() {
+              _invalidUsername = false;
               _invalidPassword = true;
             });
           }
         }
-        //loginData = userModelLoginFromJson(responseString);
       } else {
-
+        setState(() {
+          _isLoggingIn = false;
+        });
+      }
+    }).catchError((error){
+      setState(() {
+        _isLoggingIn = false;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
       }
     });
 
@@ -155,31 +188,27 @@ class _LoginState extends State<Login> {
     if(_successfulUser.data.status == true) {
       if(_isChecked == true) {
         storage.writeAuth(_email, _password);
-        print("Email + Password: " + _email + _password);
-        // final result = await Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => const Home()),
-        // );
         Navigator.pushNamed(context, '/home');
       }
       else {
         storage.writeAuth(_email, _password);
         storage.deleteFile();
-        print("Email + Password: " + _email + _password);
-        // final result = await Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => const Home()),
-        // );
         Navigator.pushNamed(context, '/home');
       }
     }
-    /*ScaffoldMessenger.of(context)
-      ..removeCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(_unsuccessfulUser.data.message)));*/
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    var height=MediaQuery.of(context).size.height/926;
+    var width=MediaQuery.of(context).size.width/428;
     return WillPopScope(
       onWillPop: () async {
         // ScaffoldMessenger.of(context)
@@ -190,7 +219,6 @@ class _LoginState extends State<Login> {
       child: GestureDetector(
         onTap: () {
           FocusScopeNode currentFocus = FocusScope.of(context);
-
           if (!currentFocus.hasPrimaryFocus) {
             currentFocus.unfocus();
           }
@@ -306,6 +334,7 @@ class _LoginState extends State<Login> {
                                           ],
                                         ),
                                         child: TextFormField(
+                                          controller: _emailController,
                                           keyboardType: TextInputType.emailAddress,
                                           decoration: InputDecoration(
                                             suffixIcon: _invalidUsername == true ? Text("!  ",
@@ -315,7 +344,7 @@ class _LoginState extends State<Login> {
                                                 fontFamily: 'Brandon-med',
                                               ),) : Text(""),
                                             suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
-                                            hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _email : "Username"),
+                                            hintText: "Username",
                                             hintStyle: TextStyle(color: _dataPreviouslyStored ? Color(0xff171616) : Color(0xffAEAEAE),
                                               fontSize: (MediaQuery.of(context).size.height)*(20/926),
                                               fontFamily: 'Brandon-med',),
@@ -336,8 +365,11 @@ class _LoginState extends State<Login> {
                                           ),
                                           //validator: (val) => val!.isEmpty ? "Please enter a Username." : null,
                                           onChanged: (val) {
-                                            _dataPreviouslyStored == null ? val = "" :
-                                            (_dataPreviouslyStored ? val = _email : _email = val);
+                                            setState(() {
+                                              _dataPreviouslyStored == null ? val = "" :
+                                              (_dataPreviouslyStored ? val = _email : _email = val);
+                                              _email = val;
+                                            });
                                             //_email = val;
                                           },
                                           style: TextStyle(
@@ -366,7 +398,7 @@ class _LoginState extends State<Login> {
                                             ],
                                           ),
                                           child: TextFormField(
-                                            //keyboardType: TextInputType.visiblePassword,
+                                            controller: _passwordController,
                                             obscureText: true,
                                             decoration: InputDecoration(
                                               suffixIcon: _invalidPassword == true ? Text("!  ",
@@ -376,7 +408,7 @@ class _LoginState extends State<Login> {
                                                   fontFamily: 'Brandon-med',
                                                 ),) : Text(""),
                                               suffixIconConstraints: BoxConstraints(minWidth: 0, minHeight: 0),
-                                              hintText: _dataPreviouslyStored == null ? "Loading..." : (_dataPreviouslyStored ? _password : "Password"),
+                                              hintText: "Password",
                                               hintStyle: TextStyle(color: _dataPreviouslyStored ? Colors.black : Color(0xffAEAEAE),
                                                 fontSize: (MediaQuery.of(context).size.height)*(20/926),
                                                 fontFamily: 'Brandon-med',),
@@ -398,8 +430,12 @@ class _LoginState extends State<Login> {
                                             //validator: (val) => val!.isEmpty ? "Please enter a Password." : null,
                                             onChanged: (val) {
                                               setState(() {
-                                                _dataPreviouslyStored == null ? val = "" :
-                                                (_dataPreviouslyStored ? val = _password : _password = val);
+                                                // ignore: unnecessary_null_comparison
+                                                setState(() {
+                                                  _dataPreviouslyStored == null ? val = "" :
+                                                  (_dataPreviouslyStored ? val = _password : _password = val);
+                                                  _password = val;
+                                                });
                                               });
                                             },
                                             style: TextStyle(
@@ -411,136 +447,98 @@ class _LoginState extends State<Login> {
                                         ),
                                         SizedBox(height: (MediaQuery.of(context).size.height)*0.024838,),
                                         Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              GestureDetector(
-                                                onTap: () {
-                                                  if(_isChecked == false)
-                                                    setState(() {
-                                                      _isChecked = true;
-                                                    });
-                                                  else if(_isChecked == true)
-                                                    setState(() {
-                                                      _isChecked = false;
-                                                    });
-                                                },
-                                                child: Row(
-                                                  mainAxisAlignment: MainAxisAlignment.start,
-                                                  children: [
-                                                    Container(
-                                                      margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
-                                                      height: (MediaQuery.of(context).size.height)*0.0167,
-                                                      width: (MediaQuery.of(context).size.height)*0.0167,
-                                                      color: Colors.white,
-                                                        child: Transform.scale(
-                                                          scale: (MediaQuery.of(context).size.height)*0.001,
-                                                          child: Checkbox(
-                                                            side: BorderSide(
-                                                              color: Color(0xffB0A6C2),
-                                                              width: 0,
-                                                            ),
-                                                            checkColor: Colors.white,
-                                                            value: _isChecked,
-                                                            onChanged: (bool? value) {
-                                                              setState(() {
-                                                                _isChecked = value!;
-                                                              });
-                                                            },
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            GestureDetector(
+                                              onTap: () {
+                                                if(_isChecked == false) {
+                                                  setState(() {
+                                                    _isChecked = true;
+                                                  });
+                                                } else if(_isChecked == true) {
+                                                  setState(() {
+                                                    _isChecked = false;
+                                                  });
+                                                }
+                                              },
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.start,
+                                                children: [
+                                                  Container(
+                                                    margin: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(45/428), right: 0,),
+                                                    height: (MediaQuery.of(context).size.height)*0.0167,
+                                                    width: (MediaQuery.of(context).size.height)*0.0167,
+                                                    color: Colors.white,
+                                                      child: Transform.scale(
+                                                        scale: (MediaQuery.of(context).size.height)*0.001,
+                                                        child: Checkbox(
+                                                          side: BorderSide(
+                                                            color: Color(0xffB0A6C2),
+                                                            width: 0,
                                                           ),
+                                                          checkColor: Color(0xff3F2668),
+                                                          activeColor: Colors.white,
+                                                          value: _isChecked,
+                                                          onChanged: (bool? value) {
+                                                            setState(() {
+                                                              _isChecked = value!;
+                                                            });
+                                                          },
                                                         ),
-                                                    ),
-                                                    Container(
-                                                      padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
-                                                      child: Text("Remember me!",
-                                                        style: TextStyle(
-                                                          color: Color.fromRGBO(255, 255, 255, 100),
-                                                          fontFamily: 'Brandon-med',
-                                                          fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                                        ),),
-                                                    ),
-                                                  ],
-                                                ),
+                                                      ),
+                                                  ),
+                                                  Container(
+                                                    padding: EdgeInsets.only(top: 0, bottom: 0, left: (MediaQuery.of(context).size.width) *(5/428), right: 0,),
+                                                    child: Text("Remember me!",
+                                                      style: TextStyle(
+                                                        color: Color.fromRGBO(255, 255, 255, 100),
+                                                        fontFamily: 'Brandon-med',
+                                                        fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                      ),),
+                                                  ),
+                                                ],
                                               ),
-                                              Container(
-                                                padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
-                                                child: Text("Forgot Password?",
-                                                  style: TextStyle(
-                                                    color: Color(0xffFFFEFE),
-                                                    fontFamily: 'Brandon-med',
-                                                    fontSize: (MediaQuery.of(context).size.height)*0.0161987,
-                                                  ),),
-                                              ),
-                                            ],
-                                          ),
-                                        _isLoggingIn ? Container() : SizedBox(height: (MediaQuery.of(context).size.height) *0.0864,),
-                                        _isLoggingIn ? Container(
-                                          height: (MediaQuery.of(context).size.height) *0.0864,
+                                            ),
+                                            Container(
+                                              padding: EdgeInsets.only(top: 0, bottom: 0, left: 0, right: (MediaQuery.of(context).size.width) *(45/428),),
+                                              child: Text("Forgot Password?",
+                                                style: TextStyle(
+                                                  color: Color(0xffFFFEFE),
+                                                  fontFamily: 'Brandon-med',
+                                                  fontSize: (MediaQuery.of(context).size.height)*0.0161987,
+                                                ),),
+                                            ),
+                                          ],
+                                        ),
+                                        _isLoggingIn ? Container() : SizedBox(height: height*80),
+                                        _isLoggingIn ? SizedBox(
+                                          height: height*80,
                                           child: Container(
-                                            alignment: Alignment.center,
-                                            height: (MediaQuery.of(context).size.height) *0.0664,
-                                              child: CircularProgressIndicator(color: Colors.white,)),
+                                              alignment: Alignment.center,
+                                              height: height*5,
+                                              child: SizedBox(height: height*25,width:height*25,child: const CircularProgressIndicator(color: Colors.white,strokeWidth: 1,))),
                                         ) : Container(),
-                                      ],
+                                  ],
                                 ),
                                     ),
                                 SizedBox(height: (MediaQuery.of(context).size.height) *(25/926),),
                               ],
                             ),
-                            // GestureDetector(
-                            //   child: Container(//Login button
-                            //     child: Align(
-                            //       alignment: Alignment.center,
-                            //       child: SvgPicture.asset(
-                            //           "assets/Images/login.svg",
-                            //         height: (MediaQuery.of(context).size.height) *0.0486,
-                            //       ),
-                            //     ),
-                            //   ),
-                            //   onTap: () {
-                            //     if(_formKey.currentState!.validate()) {
-                            //       //_navigateAndDisplaySelection(context);
-                            //       //print(_isChecked);
-                            //       getUserData(context, _email, _password);
-                            //     }
-                            //   },
-                            // ),
-                            Container(
-                              height: (MediaQuery.of(context).size.height) *(45/926),
-                              width: (MediaQuery.of(context).size.width) *(150/428),
-                              decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: <Color>[
-                                        Color(0xff7F1AF1),
-                                        Color(0xff482384)
-                                      ]),
-                                  borderRadius: new BorderRadius.only(
-                                    bottomLeft: const Radius.circular(20.0),
-                                    topRight: const Radius.circular(20.0),
-                                  )
-                              ),
-                              child: TextButton(
-                                style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
+                            GestureDetector(
+                              child: Container(//Login button
+                                child: Align(
+                                  alignment: Alignment.center,
+                                  child: SvgPicture.asset(
+                                      "assets/Images/login.svg",
+                                    height: (MediaQuery.of(context).size.height) *0.0486,
+                                  ),
                                 ),
-                                onPressed: () {
-                                  // setState(() {
-                                  //   _isLoggingIn = !_isLoggingIn;
-                                  // });
-                                  if(_formKey.currentState!.validate()) {
-                                    //_navigateAndDisplaySelection(context);
-                                    // print(_isChecked);
-                                    getUserData(context, _email, _password);
-                                  }
-                                },
-                                child: Text("Login",
-                                  style: TextStyle(
-                                    color: Color(0xffFFFEFE),
-                                    fontFamily: 'Brandon-bld',
-                                    fontSize: (MediaQuery.of(context).size.height)*(25/926),
-                                  ),),
                               ),
+                              onTap: () {
+                                if(_formKey.currentState!.validate()) {
+                                  getUserData(context, _emailController.text, _passwordController.text);
+                                }
+                              },
                             ),
                           ],
                         ),

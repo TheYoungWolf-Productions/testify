@@ -109,7 +109,32 @@ class _PreviousQuizState extends State<PreviousQuiz> {
         );
       }
     }
-    );
+    ).catchError((error){
+      setState(() {
+        hasPreviousQuizzesDataLoaded = true;
+      });
+      var errorSplit = error.toString().split(":");
+      if(errorSplit[0].toLowerCase() == "socketexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("No Internet Connection")));
+      }
+      // else if(errorSplit[0].toLowerCase() == "httpexception") {
+      //   ScaffoldMessenger.of(context)
+      //     ..removeCurrentSnackBar()
+      //     ..showSnackBar(SnackBar(content: Text("Couldn't find the said thing.")));
+      // }
+      else if(errorSplit[0].toLowerCase() == "formatexception") {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text("Bad Response Format")));
+      }
+      else {
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    });
   }
 
   categorizePreviousQuizzesData() {
